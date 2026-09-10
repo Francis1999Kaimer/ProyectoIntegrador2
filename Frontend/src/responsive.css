@@ -1,0 +1,488 @@
+/*
+ * AI Blocks Studio — responsive audit layer
+ * Loaded last so it can safely correct earlier prototype/Carbon rules.
+ * Breakpoints:
+ *   >1280 desktop
+ *   769–1280 laptop/tablet landscape
+ *   481–768 tablet/mobile
+ *   <=480 compact mobile
+ */
+
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0 !important;
+}
+
+html { overflow-x: hidden; }
+body {
+  min-width: 0 !important;
+  overflow-x: hidden;
+}
+
+img,
+svg,
+canvas,
+video { max-width: 100%; }
+
+button,
+a,
+input,
+textarea,
+select { min-width: 0; }
+
+.page,
+.narrow-page,
+.wizard-page,
+.dynamic-flow-page { width: 100%; min-width: 0; }
+
+.hero > *,
+.two-column > *,
+.model-layout > *,
+.editor-layout > *,
+.chart-grid > *,
+.prediction-layout > *,
+.eval-layout > *,
+.featured-project > *,
+.wizard-dynamic-layout > *,
+.dynamic-dataset-grid > *,
+.dynamic-model-layout > * { min-width: 0; }
+
+h1,
+h2,
+h3,
+p,
+strong,
+small,
+span,
+dd,
+dt { overflow-wrap: anywhere; }
+
+pre,
+code { max-width: 100%; }
+
+/* Scrollable navigation patterns instead of forcing page width. */
+.stepper,
+.source-tabs,
+.tab-row,
+.dynamic-source-tabs,
+.project-filters {
+  scrollbar-width: thin;
+}
+
+/* ---------- Laptop / small desktop ---------- */
+@media (max-width: 1280px) {
+  .page,
+  .wizard-page,
+  .dynamic-flow-page { padding-inline: 24px; }
+
+  .app-header { padding-inline: 16px; gap: 12px; }
+  .main-nav a { padding-inline: 10px; }
+  .header-actions .search { display: none; }
+
+  .hero { grid-template-columns: 1fr; gap: 24px; }
+  .hero-flow { min-height: 150px; }
+
+  .card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .recent-panel { grid-template-columns: 1fr; }
+  .recent-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+  .projects-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .projects-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .featured-project { grid-template-columns: 1fr; }
+  .featured-pipeline { overflow-x: auto; justify-content: flex-start; }
+
+  .two-column,
+  .dataset-layout,
+  .model-layout,
+  .eval-layout,
+  .prediction-layout,
+  .chart-grid,
+  .wizard-dynamic-layout,
+  .dynamic-dataset-grid,
+  .dynamic-model-layout { grid-template-columns: 1fr; }
+
+  .wizard-side { position: static; }
+
+  .three-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dynamic-prep-grid,
+  .dynamic-prep-pipeline { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .metric-grid,
+  .metric-grid.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  /* Editor: palette + canvas, inspector below. */
+  .editor-layout {
+    height: auto;
+    grid-template-columns: 190px minmax(0, 1fr);
+    align-items: stretch;
+  }
+  .flow-canvas { height: 580px; min-height: 580px; }
+  .editor-inspector { grid-column: 1 / -1; }
+}
+
+/* ---------- Tablet / mobile ---------- */
+@media (max-width: 768px) {
+  body { font-size: 15px; }
+
+  .page,
+  .wizard-page,
+  .dynamic-flow-page {
+    padding: 20px 16px 40px;
+  }
+
+  /* Application shell: two rows, horizontally scrollable navigation. */
+  .app-header {
+    position: relative;
+    top: auto;
+    height: auto;
+    min-height: 56px;
+    padding: 8px 12px 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .brand { min-height: 40px; margin-right: auto; }
+  .brand-mark { width: 32px; height: 32px; flex: 0 0 32px; }
+  .header-actions { margin-left: auto; }
+  .header-actions .search,
+  .header-actions .icon-button { display: none; }
+  .avatar { width: 34px; height: 34px; margin-left: 0; }
+
+  .main-nav {
+    order: 10;
+    width: calc(100% + 24px);
+    height: 44px;
+    margin-inline: -12px;
+    padding-inline: 4px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    display: flex;
+    flex-wrap: nowrap;
+    border-top: 1px solid var(--cds-gray-80, #393939);
+  }
+  .main-nav a {
+    flex: 0 0 auto;
+    min-height: 44px;
+    height: 44px;
+    padding-inline: 14px;
+    white-space: nowrap;
+  }
+
+  .wizard-shell-header { padding-bottom: 8px; }
+  .wizard-shell-header .wizard-context { display: none; }
+  .wizard-shell-header > .button-link { margin-left: auto; }
+
+  /* Process stepper stays usable instead of wrapping into unreadable rows. */
+  .stepper {
+    position: sticky;
+    top: 0;
+    z-index: 18;
+    height: 48px;
+    justify-content: flex-start;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+  }
+  .stepper a {
+    flex: 0 0 auto;
+    height: 48px;
+    padding-inline: 12px;
+  }
+
+  .section-heading,
+  .page-title,
+  .editor-head,
+  .projects-hero,
+  .projects-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .section-heading,
+  .page-title,
+  .editor-head { margin-top: 24px; }
+
+  .page-title > button,
+  .projects-hero > button { align-self: flex-start; }
+
+  .hero {
+    min-height: 0;
+    padding: 28px 20px;
+    grid-template-columns: 1fr;
+  }
+  .hero h1 {
+    font-size: clamp(36px, 10vw, 48px);
+    line-height: 1.02;
+  }
+  .hero p { font-size: 15px; }
+  .hero-flow {
+    min-height: 0;
+    padding: 18px;
+    flex-direction: column;
+  }
+  .hero-flow > svg { transform: rotate(90deg); flex: 0 0 auto; }
+  .mini-node { width: min(100%, 280px); min-width: 0; }
+
+  .hero-actions,
+  .actions,
+  .actions.between,
+  .editor-head > div:last-child,
+  .project-card-actions {
+    flex-wrap: wrap;
+  }
+  .actions.between { align-items: stretch; gap: 12px; }
+  .actions.between > div { flex-wrap: wrap; }
+
+  .card-grid,
+  .recent-list,
+  .projects-grid,
+  .projects-overview,
+  .three-grid,
+  .metric-grid,
+  .metric-grid.four,
+  .dynamic-prep-grid,
+  .dynamic-prep-pipeline {
+    grid-template-columns: 1fr;
+  }
+
+  .recent-panel { padding: 20px; }
+  .project-card { min-height: 156px; }
+  .project-card p { max-width: 100%; padding-right: 24px; }
+
+  /* Projects library */
+  .projects-hero { padding: 24px 20px; }
+  .projects-hero h1 { font-size: clamp(34px, 9vw, 44px); }
+  .projects-toolbar { gap: 12px; }
+  .project-filters {
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .project-filters button { flex: 0 0 auto; white-space: nowrap; }
+  .projects-search { width: 100%; min-width: 0; }
+  .featured-project { padding: 20px; }
+  .featured-pipeline {
+    display: grid;
+    grid-template-columns: 1fr;
+    overflow: visible;
+    gap: 8px;
+  }
+  .featured-pipeline > div { width: 100%; min-height: 88px; }
+  .featured-pipeline > svg { transform: rotate(90deg); margin: auto; }
+  .project-cover { height: auto; min-height: 96px; gap: 12px; }
+  .project-cover > div { text-align: right; min-width: 0; }
+  .new-project-card { min-height: 260px; }
+
+  /* Creation wizard */
+  .carbon-progress {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .wizard-main-panel { padding: 22px 18px; }
+  .wizard-main-panel h1 { font-size: clamp(30px, 8vw, 38px); }
+  .project-type-selector,
+  .dynamic-config-grid,
+  .level-cards { grid-template-columns: 1fr; }
+  .project-type-option {
+    min-height: 0;
+    grid-template-columns: 38px minmax(0, 1fr) 22px;
+    padding: 16px;
+  }
+  .level-card { min-height: 112px; }
+  .preview-stage { height: 120px; font-size: clamp(24px, 8vw, 34px); }
+  .live-preview dl { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .wizard-actions { justify-content: stretch; }
+  .wizard-actions > * { flex: 1 1 180px; }
+
+  /* Dataset / preparation / model */
+  .source-tabs,
+  .tab-row,
+  .dynamic-source-tabs {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-wrap: nowrap;
+  }
+  .source-tabs button,
+  .tab-row button,
+  .dynamic-source-tabs button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+  .dynamic-upload { min-height: 300px; padding: 24px 18px; }
+  .dataset-preview-chips { justify-content: flex-start; }
+  .dynamic-prep-pipeline > div { border-right: 0; border-bottom: 1px solid #e0e0e0; }
+  .dynamic-prep-card { min-height: 0; }
+  .dynamic-prep-card p { min-height: 0; }
+  .dynamic-model-card {
+    min-height: 106px;
+    padding: 16px;
+    grid-template-columns: 26px 36px minmax(0, 1fr);
+    gap: 10px;
+  }
+  .dynamic-model-card em { grid-column: 3; justify-self: start; }
+  .dynamic-model-config { grid-template-columns: 1fr; }
+
+  /* Legacy/general layouts that are still used later in the flow. */
+  .two-column,
+  .dataset-layout,
+  .model-layout,
+  .eval-layout,
+  .prediction-layout,
+  .chart-grid { grid-template-columns: 1fr !important; }
+  .option-grid { grid-template-columns: 1fr; }
+  .level-row { flex-wrap: wrap; }
+  .pipeline-strip {
+    justify-content: flex-start;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .pipeline-strip > div { flex: 0 0 auto; }
+  .model-grid { grid-template-columns: 1fr; }
+  .network-preview { overflow-x: auto; justify-content: flex-start; }
+  .network-preview > * { flex: 0 0 auto; }
+
+  /* Visual editor: stack all three regions. */
+  .editor-layout {
+    height: auto;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .block-palette {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 16px;
+  }
+  .block-palette h3,
+  .block-palette .search { grid-column: 1 / -1; }
+  .block-palette > button { min-height: 48px; }
+  .flow-canvas {
+    width: 100%;
+    height: 62vh;
+    min-height: 440px;
+    max-height: 640px;
+  }
+  .editor-inspector { grid-column: auto; }
+  .react-flow__controls { transform: scale(.9); transform-origin: bottom left; }
+  .react-flow__minimap { max-width: 135px; max-height: 95px; }
+
+  /* Training / evaluation */
+  .training-hero {
+    grid-template-columns: 1fr;
+    padding: 24px 20px;
+  }
+  .training-hero > svg { display: none; }
+  .training-hero h1 { font-size: clamp(28px, 8vw, 36px); }
+  .metric-card { min-width: 0; }
+  .metric-card strong { font-size: clamp(22px, 7vw, 28px); }
+  .fake-chart { padding: 10px; }
+  .success-banner { align-items: flex-start; padding: 20px; }
+  .success-banner h1 { font-size: clamp(26px, 7vw, 34px); }
+  .eval-layout > .panel:first-child { overflow-x: auto; }
+  .confusion { min-width: 360px; }
+  .mistakes { grid-template-columns: 1fr; }
+  .prediction-result { grid-template-columns: 1fr; }
+  .prediction-drop { min-height: 170px; font-size: 54px; }
+  .code-card pre {
+    min-height: 320px;
+    overflow: auto;
+    padding: 16px;
+    font-size: 11px;
+  }
+  .empty-state { padding: 60px 16px; }
+}
+
+/* ---------- Compact mobile ---------- */
+@media (max-width: 480px) {
+  .page,
+  .wizard-page,
+  .dynamic-flow-page { padding-inline: 12px; }
+
+  .brand { font-size: 14px; }
+  .brand-mark { width: 30px; height: 30px; flex-basis: 30px; }
+  .main-nav a { padding-inline: 12px; font-size: 13px; }
+
+  .hero { padding: 24px 16px; border-left-width: 4px; }
+  .hero h1 { font-size: clamp(33px, 11vw, 42px); }
+  .hero-actions > *,
+  .wizard-actions > *,
+  .actions.end > *,
+  .projects-hero > button { width: 100%; }
+
+  .section-heading h2,
+  .page-title h1,
+  .editor-head h1 { font-size: 28px; }
+
+  .carbon-progress { grid-template-columns: 1fr; }
+  .carbon-progress span { min-height: 46px; }
+  .wizard-main-panel { padding: 18px 14px; }
+
+  .project-type-option {
+    grid-template-columns: 34px minmax(0, 1fr) 20px;
+    gap: 9px;
+    padding: 14px 12px;
+  }
+  .project-type-icon { width: 32px; height: 32px; }
+  .project-type-option strong { font-size: 15px; }
+
+  .dynamic-config-heading,
+  .dynamic-config-grid > div,
+  .dynamic-data-summary,
+  .live-preview,
+  .pipeline-preview-card,
+  .dynamic-model-inspector { padding-inline: 16px; }
+
+  .live-preview dl { grid-template-columns: 1fr; }
+  .live-preview dd { text-align: left; padding-top: 0; }
+
+  .projects-overview { gap: 1px; }
+  .project-card-metrics { grid-template-columns: 1fr; }
+  .project-card-top { align-items: flex-start; }
+  .project-cover { align-items: flex-start; }
+  .project-cover > span { font-size: 34px; }
+  .project-cover strong { font-size: 15px; }
+
+  .block-palette { grid-template-columns: 1fr; }
+  .block-palette h3,
+  .block-palette .search { grid-column: 1; }
+  .flow-canvas { height: 56vh; min-height: 390px; }
+  .react-flow__minimap { display: none; }
+
+  .metric-grid,
+  .metric-grid.four { grid-template-columns: 1fr; }
+  .metric-card { padding: 16px; }
+  .success-banner { flex-direction: column; }
+  .prediction-drop { font-size: 44px; }
+
+  .actions,
+  .actions.end,
+  .actions.between { align-items: stretch; }
+  .actions.end { justify-content: stretch; }
+}
+
+/* Touch devices: avoid hover motion and enlarge interactive targets. */
+@media (hover: none), (pointer: coarse) {
+  .project-card:hover,
+  .project-library-card:hover { transform: none; }
+
+  button,
+  .button-link,
+  .main-nav a,
+  .stepper a { min-height: 44px; }
+}
+
+/* Respect OS accessibility preference. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
