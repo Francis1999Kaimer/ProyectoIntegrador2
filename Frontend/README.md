@@ -1,31 +1,40 @@
-# Frontend
+# Frontend — AI Blocks Studio
 
-Aplicación web de AI Blocks Studio.
+Prototipo UX/UI navegable del entorno educativo visual para construir modelos de inteligencia artificial.
 
-## Propósito actual
+## Stack
 
-Construir primero el flujo UX/UI completo con datos mock, sin depender del backend ni del servicio ML.
-
-## Stack propuesto
-
-- React
+- React 19
 - TypeScript
 - Vite
-- React Flow
 - React Router
-- Zustand o Context para estado UI inicial
-- CSS Modules, Tailwind o una librería de componentes a decidir durante la fase visual
+- React Flow (`@xyflow/react`)
+- Zustand
+- Lucide React
 
-## Pantallas iniciales
+## Ejecutar localmente
 
-1. Inicio / dashboard.
-2. Crear proyecto.
-3. Cargar dataset.
-4. Preparar datos.
-5. Seleccionar/configurar modelo.
-6. Editor visual de bloques.
-7. Entrenamiento simulado.
-8. Evaluación.
-9. Probar modelo / ver código.
+Requiere Node.js 22.22 o superior.
 
-El contrato real con el backend se definirá después de validar estas pantallas.
+```powershell
+cd D:\ProyectoIntegrador2\Frontend
+npm install
+npm run dev
+```
+
+Abrir `http://localhost:5173`.
+
+## Flujo implementado con datos mock
+
+Inicio → Crear proyecto → Dataset → Preparación → Modelo → Editor visual → Entrenamiento → Evaluación → Predicción.
+
+Todavía no se conecta a Backend, PostgreSQL, Redis, MinIO ni ML-Service. El objetivo de esta fase es validar UX/UI y el modelo mental del estudiante antes de implementar la integración real.
+
+## Próximos pasos
+
+1. Validar navegación y jerarquía visual.
+2. Convertir componentes grandes en módulos reutilizables.
+3. Hacer interactivos los nodos de React Flow.
+4. Definir el contrato JSON del pipeline.
+5. Persistir el estado mock en localStorage.
+6. Recién después conectar NestJS.
