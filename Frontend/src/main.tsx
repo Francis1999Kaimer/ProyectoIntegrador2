@@ -9,6 +9,7 @@ import './styles.css'
 import './projects.css'
 import './carbon-friendly.css'
 import './dynamic-project.css'
+import './responsive.css'
 
 function RoutedExperience() {
   const { pathname } = useLocation()
