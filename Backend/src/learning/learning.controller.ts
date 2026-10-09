@@ -1,8 +1,8 @@
-import { Body, Controller, Delete, Get, Header, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, Query, Req, UseFilters } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, Query, Req, StreamableFile, UseFilters } from '@nestjs/common';
 import { AuthRequest, Roles } from '../auth/auth.policy';
 import { LearningService } from './learning.service';
 import { ApiErrorFilter } from './api-error.filter';
-import { ClassroomDto, ClassroomPatchDto, ConsentDto, EnrollmentDto, PageDto, ProgressDto, ProjectDto, ProjectPatchDto, StudentDto, StudentStatusDto, TeacherDto, TeacherStatusDto, WorkspaceDto } from './learning.dto';
+import { CharacterDatasetDto, CharacterTrainingDto, ClassroomDto, ClassroomPatchDto, ConsentDto, EnrollmentDto, PageDto, ProgressDto, ProjectDto, ProjectPatchDto, StudentDto, StudentStatusDto, TeacherDto, TeacherStatusDto, WorkspaceDto } from './learning.dto';
 
 const uuid = new ParseUUIDPipe({ version: '4' });
 @Controller() @UseFilters(ApiErrorFilter) @Roles('student', 'teacher', 'admin')
@@ -54,6 +54,18 @@ export class LearningController {
   createProject(@Req() req: AuthRequest, @Body() body: ProjectDto) { return this.service.createProject(req.user!, body); }
   @Patch('projects/:id') @Header('Cache-Control', 'no-store')
   updateProject(@Req() req: AuthRequest, @Param('id', uuid) id: string, @Body() body: ProjectPatchDto) { return this.service.updateProject(req.user!, id, body); }
+  @Get('projects/:id/character-lab') @Header('Cache-Control', 'no-store')
+  characterLab(@Req() req: AuthRequest, @Param('id', uuid) id: string) { return this.service.characterLab(req.user!, id); }
+  @Put('projects/:id/character-lab/dataset') @Header('Cache-Control', 'no-store')
+  saveCharacterDataset(@Req() req: AuthRequest, @Param('id', uuid) id: string, @Body() body: CharacterDatasetDto) { return this.service.saveCharacterDataset(req.user!, id, body); }
+  @Get('projects/:id/character-lab/dataset-file') @Header('Cache-Control', 'no-store')
+  async characterDatasetFile(@Req() req: AuthRequest, @Param('id', uuid) id: string) { const file = await this.service.characterDatasetFile(req.user!, id); return new StreamableFile(file.bytes, { type: file.content_type, disposition: `attachment; filename="${file.file_name.replace(/["\\]/g, '_')}"` }); }
+  @Put('projects/:id/character-lab/training') @Header('Cache-Control', 'no-store')
+  saveCharacterTraining(@Req() req: AuthRequest, @Param('id', uuid) id: string, @Body() body: CharacterTrainingDto) { return this.service.saveCharacterTraining(req.user!, id, body); }
+  @Get('projects/:id/character-lab/model-file') @Header('Cache-Control', 'no-store')
+  async characterModelFile(@Req() req: AuthRequest, @Param('id', uuid) id: string) { const file = await this.service.characterModelFile(req.user!, id); return new StreamableFile(file.bytes, { type: file.content_type, disposition: `attachment; filename="${file.file_name.replace(/["\\]/g, '_')}"` }); }
+  @Delete('projects/:id/character-lab') @HttpCode(204)
+  clearCharacterLab(@Req() req: AuthRequest, @Param('id', uuid) id: string) { return this.service.clearCharacterLab(req.user!, id); }
   @Get('projects/:id/workspace') @Header('Cache-Control', 'no-store')
   workspace(@Req() req: AuthRequest, @Param('id', uuid) id: string) { return this.service.workspace(req.user!, id); }
   @Put('projects/:id/workspace') @Header('Cache-Control', 'no-store')

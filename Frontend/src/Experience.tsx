@@ -18,7 +18,7 @@ function ProjectSelection({children}:{children:ReactNode}) {
   useEffect(()=>{if(result.data)select(result.data)},[result.data,select])
   if (!id) return <Page><section className="panel empty-state"><h1>Selecciona un proyecto</h1><Link to="/proyectos">Ir a proyectos</Link></section></Page>
   if (result.loading || result.error || !result.data || selectedId!==id) return <Page><ApiMessage loading={result.loading||(!result.error&&selectedId!==id)} error={result.error} retry={result.reload}/></Page>
-  return <><div className="demo-notice" role="note">Laboratorio de caracteres: el dataset y el modelo se guardan localmente en este navegador. El entrenamiento es real y no se envían imágenes al servidor.</div>{children}</>
+  return <><div className="demo-notice" role="note">Laboratorio de caracteres: el entrenamiento es real en el navegador. El ZIP, modelo y resultados se guardan de forma privada en el proyecto para continuar desde otro equipo.</div>{children}</>
 }
 function RoutedExperience() {
   const {pathname} = useLocation()

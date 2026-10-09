@@ -4,7 +4,7 @@
 
 | Archivo | Propósito |
 |---|---|
-| `schema.sql` | 17 tablas InnoDB con PK, FK, índices y restricciones. |
+| `schema.sql` | 17 tablas base InnoDB con PK, FK, índices y restricciones. |
 | `seed.sql` | 3 niveles, 1 curso, 24 semanas, 3 clases piloto y 3 retos piloto de semana 1. No crea usuarios. |
 | `verify.sql` | Consultas de verificación reales de tablas, relaciones y datos semilla. |
 | `check_model.py` | Comprueba estáticamente que tablas, columnas y relaciones coinciden con el DER. |
@@ -51,7 +51,9 @@ Se pedirá contraseña en ambos comandos. Detenerse si aparece cualquier error S
 cmd /c 'mysql --default-character-set=utf8mb4 -u root -p -h 127.0.0.1 -P 3306 aiblockstudio < database\verify.sql'
 ```
 
-Resultados esperados: `tables_17` = 17/PASS, `fk_24` = 24/PASS, `levels_3` = 3/PASS, `weeks_24` = 24/PASS, `lessons_week_1_3` = 3/PASS y `challenges_week_1_3` = 3/PASS.
+Resultados esperados: `tables_18` = 18/PASS, `fk_25` = 25/PASS, `levels_3` = 3/PASS, `weeks_24` = 24/PASS, `lessons_week_1_3` = 3/PASS y `challenges_week_1_3` = 3/PASS.
+
+El resultado de 18 tablas presupone el flujo actual con Prisma (`Backend\npm.cmd run db:bootstrap`), que añade la tabla `character_labs`. El archivo `schema.sql` queda como referencia del hito 2 y no reemplaza las migraciones de Prisma.
 
 Para evidencias adicionales:
 

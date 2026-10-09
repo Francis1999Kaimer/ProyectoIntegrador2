@@ -1,18 +1,18 @@
 -- Consultas de verificación APF2 Hito 2 (solo lectura)
 -- Ejecutar después de schema.sql y seed.sql. No cambia registros.
 SELECT DATABASE() AS selected_database, VERSION() AS server_version;
-SELECT 'tables_17' AS test, COUNT(*) AS actual,
-       IF(COUNT(*) = 17, 'PASS', 'FAIL') AS result
+SELECT 'tables_18' AS test, COUNT(*) AS actual,
+       IF(COUNT(*) = 18, 'PASS', 'FAIL') AS result
 FROM information_schema.tables
 WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE'
   AND table_name IN (
     'levels','users','courses','course_weeks','lessons','classrooms',
     'classroom_enrollments','guardian_consents','projects','workspaces',
     'workspace_versions','simulation_runs','lesson_progress','challenges',
-    'classroom_challenges','challenge_attempts','audit_logs'
+    'classroom_challenges','challenge_attempts','audit_logs','character_labs'
   );
-SELECT 'fk_24' AS test, COUNT(*) AS actual,
-       IF(COUNT(*) = 24, 'PASS', 'FAIL') AS result
+SELECT 'fk_25' AS test, COUNT(*) AS actual,
+       IF(COUNT(*) = 25, 'PASS', 'FAIL') AS result
 FROM information_schema.key_column_usage
 WHERE table_schema = DATABASE() AND referenced_table_name IS NOT NULL;
 SELECT 'levels_3' AS test, COUNT(*) AS actual, IF(COUNT(*) = 3, 'PASS', 'FAIL') AS result FROM levels;

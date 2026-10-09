@@ -1337,5 +1337,32 @@
         "unique": false
       }
     ]
+  },
+  {
+    "name": "character_labs",
+    "columns": [
+      { "name": "project_id", "type": "char(36)", "nullable": false },
+      { "name": "dataset_file_name", "type": "varchar(180)", "nullable": false },
+      { "name": "dataset_content_type", "type": "varchar(80)", "nullable": false },
+      { "name": "dataset_bytes", "type": "longblob", "nullable": false },
+      { "name": "dataset_labels_json", "type": "longtext", "nullable": false },
+      { "name": "dataset_samples", "type": "int unsigned", "nullable": false },
+      { "name": "dataset_updated_at", "type": "datetime", "nullable": false },
+      { "name": "model_file_name", "type": "varchar(180)", "nullable": true },
+      { "name": "model_content_type", "type": "varchar(80)", "nullable": true },
+      { "name": "model_bytes", "type": "longblob", "nullable": true },
+      { "name": "training_metrics_json", "type": "longtext", "nullable": true },
+      { "name": "training_updated_at", "type": "datetime", "nullable": true }
+    ],
+    "checks": [
+      "chk_character_labs_dataset_labels_json",
+      "chk_character_labs_training_metrics_json"
+    ],
+    "fks": [
+      { "name": "fk_character_labs_project", "column": "project_id", "target": "projects", "ref": "id", "delete": "CASCADE" }
+    ],
+    "indexes": [
+      { "name": "PRIMARY", "columns": "project_id", "unique": true }
+    ]
   }
 ]

@@ -160,9 +160,28 @@ model projects {
   rel_fk_projects_owner      users       @relation("fk_projects_owner", fields: [owner_id], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_projects_owner")
   rel_fk_projects_classroom  classrooms? @relation("fk_projects_classroom", fields: [classroom_id], references: [id], onDelete: SetNull, onUpdate: Restrict, map: "fk_projects_classroom")
   back_fk_workspaces_project workspaces? @relation("fk_workspaces_project")
+  back_fk_character_lab_project character_labs? @relation("fk_character_labs_project")
 
   @@index([owner_id, updated_at], map: "ix_projects_owner_updated")
   @@index([classroom_id], map: "ix_projects_classroom")
+}
+
+// Un único laboratorio de caracteres por proyecto. Los archivos se conservan
+// como BLOB privados en MySQL para que el trabajo se pueda abrir en otro equipo.
+model character_labs {
+  project_id             String    @id @db.Char(36)
+  dataset_file_name      String    @db.VarChar(180)
+  dataset_content_type   String    @db.VarChar(80)
+  dataset_bytes          Bytes     @db.LongBlob
+  dataset_labels_json    String    @db.LongText
+  dataset_samples        Int       @db.UnsignedInt
+  dataset_updated_at     DateTime  @default(now()) @db.DateTime(0)
+  model_file_name        String?   @db.VarChar(180)
+  model_content_type     String?   @db.VarChar(80)
+  model_bytes            Bytes?    @db.LongBlob
+  training_metrics_json  String?   @db.LongText
+  training_updated_at    DateTime? @db.DateTime(0)
+  rel_fk_character_labs_project projects @relation("fk_character_labs_project", fields: [project_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_character_labs_project")
 }
 
 model workspaces {

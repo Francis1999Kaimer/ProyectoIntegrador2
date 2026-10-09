@@ -1,5 +1,5 @@
 import { Transform, Type } from 'class-transformer';
-import { IsEmail, IsIn, IsInt, IsObject, IsString, IsUUID, Length, Matches, Max, Min, ValidateIf } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsBase64, IsEmail, IsIn, IsInt, IsNumber, IsObject, IsString, IsUUID, Length, Matches, Max, Min, ValidateIf } from 'class-validator';
 
 const trim = ({ value }: { value: unknown }) => typeof value === 'string' ? value.trim() : value;
 // Optional means absent, not null: null must not bypass PATCH validation.
@@ -48,5 +48,22 @@ export class ProjectPatchDto {
 export class WorkspaceDto {
   @IsInt() @Min(0) @Max(4294967294) version!: number;
   @IsObject() blocks!: Record<string, unknown>;
+}
+export class CharacterDatasetDto {
+  @Transform(trim) @IsString() @Length(1, 180) file_name!: string;
+  @IsIn(['application/zip', 'application/x-zip-compressed']) content_type!: string;
+  @IsBase64() archive_base64!: string;
+  @IsArray() @ArrayMinSize(2) @ArrayMaxSize(128) @IsString({ each: true }) @Length(1, 80, { each: true }) labels!: string[];
+  @IsInt() @Min(12) @Max(100000) samples!: number;
+}
+export class CharacterTrainingDto {
+  @Transform(trim) @IsString() @Length(1, 180) file_name!: string;
+  @IsIn(['application/zip', 'application/x-zip-compressed']) content_type!: string;
+  @IsBase64() archive_base64!: string;
+  @IsArray() @ArrayMinSize(2) @ArrayMaxSize(128) @IsString({ each: true }) @Length(1, 80, { each: true }) labels!: string[];
+  @IsInt() @Min(1) @Max(100) epochs!: number;
+  @IsNumber() @Min(0) @Max(1) accuracy!: number;
+  @IsNumber() @Min(0) @Max(1000000) loss!: number;
+  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(100) history!: Array<{ epoch: number; accuracy: number; loss: number }>;
 }
 export class ProgressDto { @IsInt() @Min(0) @Max(255) completed_sections!: number; }

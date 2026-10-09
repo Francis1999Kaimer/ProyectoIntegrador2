@@ -5,7 +5,10 @@ import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { abortOnError: false, logger: false });
+  const app = await NestFactory.create(AppModule, { abortOnError: false, logger: false, bodyParser: false });
+  // ZIP y modelo se reciben codificados en JSON; el límite evita que una carga
+  // accidental agote memoria y deja margen para la expansión Base64.
+  app.use(require('express').json({ limit: '22mb' }));
   app.useLogger(new Logger());
   const config = app.get(ConfigService);
   app.enableCors({ origin: config.get<string[]>('CORS_ORIGINS'), credentials: false });

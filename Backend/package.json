@@ -7,7 +7,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "start": "node dist/main.js",
+    "start": "npm run prisma:deploy && node dist/main.js",
     "start:dev": "ts-node src/main.ts",
     "prisma:validate": "prisma validate",
     "prisma:generate": "prisma generate",
@@ -15,6 +15,9 @@
     "prisma:baseline": "node scripts/baseline.cjs",
     "prisma:status": "prisma migrate status",
     "prisma:deploy": "prisma migrate deploy",
+    "db:seed:catalog": "prisma db execute --file ../database/seed.sql --schema prisma/schema.prisma",
+    "db:bootstrap": "npm run prisma:deploy && npm run db:seed:catalog",
+    "db:reset:local": "prisma migrate reset --force && npm run db:seed:catalog",
     "test": "node --test test/*.test.cjs",
     "test:repositories:db": "node scripts/repositories-smoke.cjs",
     "prebuild": "npm run prisma:generate",

@@ -1,14 +1,15 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { PasswordService } from '../auth/password.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { PageRequest, Project, SimulationRun, Workspace } from '../repositories/contracts';
 import { Actor, LEARNING_REPOSITORY, LearningRepository } from '../repositories/learning.contracts';
-import { ClassroomDto, ClassroomPatchDto, ConsentDto, ProjectDto, ProjectPatchDto, StudentDto, TeacherDto, WorkspaceDto } from './learning.dto';
+import { CharacterDatasetDto, CharacterTrainingDto, ClassroomDto, ClassroomPatchDto, ConsentDto, ProjectDto, ProjectPatchDto, StudentDto, TeacherDto, WorkspaceDto } from './learning.dto';
 import { simulatePedagogically } from './pedagogical-simulation';
 
 @Injectable()
 export class LearningService {
   constructor(@Inject(LEARNING_REPOSITORY) private readonly repo: LearningRepository,
-    private readonly passwords: PasswordService) {}
+    private readonly passwords: PasswordService, private readonly db: PrismaService) {}
   catalog() { return this.repo.catalog(); }
   students(actor: Actor, page: PageRequest) { return this.repo.listStudents(actor, page); }
   teachers(page: PageRequest) { return this.repo.listTeachers(page); }
@@ -137,6 +138,92 @@ export class LearningService {
       provider: result.provider, seed: result.seed, parameters_json: JSON.stringify(result.parameters),
       metrics_json: JSON.stringify(result.metrics), accuracy: result.accuracy, loss: result.loss
     }));
+  }
+  private readonly maxCharacterArchiveBytes = 15 * 1024 * 1024;
+  private archive(base64: string, subject: string) {
+    // Buffer.from accepts malformed input silently; validate the canonical Base64
+    // form before retaining it in the database.
+    if (!/^[A-Za-z0-9+/]+={0,2}$/.test(base64) || base64.length % 4 !== 0) {
+      throw new BadRequestException(`${subject} invÃ¡lido.`);
+    }
+    const bytes = Buffer.from(base64, 'base64');
+    if (bytes.length < 4 || bytes.length > this.maxCharacterArchiveBytes || bytes[0] !== 0x50 || bytes[1] !== 0x4b) {
+      throw new BadRequestException(`${subject} debe ser un ZIP de hasta 15 MB.`);
+    }
+    return bytes;
+  }
+  private labels(values: string[]) {
+    const labels = values.map(value => value.trim());
+    if (labels.some(value => !value) || new Set(labels).size !== labels.length) {
+      throw new BadRequestException('Las etiquetas del dataset no son vÃ¡lidas.');
+    }
+    return labels.sort((a, b) => a.localeCompare(b));
+  }
+  private labView(row: { project_id: string; dataset_file_name: string; dataset_content_type: string; dataset_labels_json: string; dataset_samples: number; dataset_updated_at: Date; model_file_name: string | null; model_content_type: string | null; training_metrics_json: string | null; training_updated_at: Date | null }) {
+    const labels = JSON.parse(row.dataset_labels_json) as string[];
+    const metrics = row.training_metrics_json ? JSON.parse(row.training_metrics_json) as { labels: string[]; epochs: number; accuracy: number; loss: number; history: unknown[] } : null;
+    return {
+      project_id: row.project_id,
+      dataset: { file_name: row.dataset_file_name, content_type: row.dataset_content_type, labels, samples: row.dataset_samples, updated_at: row.dataset_updated_at },
+      training: metrics && row.model_file_name && row.model_content_type && row.training_updated_at ? {
+        file_name: row.model_file_name, content_type: row.model_content_type, ...metrics, updated_at: row.training_updated_at
+      } : null
+    };
+  }
+  async characterLab(actor: Actor, projectId: string) {
+    await this.project(actor, projectId);
+    const row = await this.db.character_labs.findUnique({ where: { project_id: projectId }, select: {
+      project_id: true, dataset_file_name: true, dataset_content_type: true, dataset_labels_json: true, dataset_samples: true, dataset_updated_at: true,
+      model_file_name: true, model_content_type: true, training_metrics_json: true, training_updated_at: true
+    } });
+    return row ? this.labView(row) : { project_id: projectId, dataset: null, training: null };
+  }
+  async saveCharacterDataset(actor: Actor, projectId: string, input: CharacterDatasetDto) {
+    const project = await this.project(actor, projectId, true);
+    if (project.status === 'archived') throw new BadRequestException('El proyecto estÃ¡ archivado.');
+    const labels = this.labels(input.labels), bytes = this.archive(input.archive_base64, 'El dataset');
+    const row = await this.db.character_labs.upsert({ where: { project_id: projectId }, create: {
+      project_id: projectId, dataset_file_name: input.file_name, dataset_content_type: input.content_type, dataset_bytes: bytes,
+      dataset_labels_json: JSON.stringify(labels), dataset_samples: input.samples
+    }, update: {
+      dataset_file_name: input.file_name, dataset_content_type: input.content_type, dataset_bytes: bytes,
+      dataset_labels_json: JSON.stringify(labels), dataset_samples: input.samples, dataset_updated_at: new Date(),
+      model_file_name: null, model_content_type: null, model_bytes: null, training_metrics_json: null, training_updated_at: null
+    }, select: {
+      project_id: true, dataset_file_name: true, dataset_content_type: true, dataset_labels_json: true, dataset_samples: true, dataset_updated_at: true,
+      model_file_name: true, model_content_type: true, training_metrics_json: true, training_updated_at: true
+    } });
+    return this.labView(row);
+  }
+  async characterDatasetFile(actor: Actor, projectId: string) {
+    await this.project(actor, projectId);
+    const row = await this.db.character_labs.findUnique({ where: { project_id: projectId }, select: { dataset_file_name: true, dataset_content_type: true, dataset_bytes: true } });
+    if (!row) throw new NotFoundException('AÃºn no hay un dataset para este proyecto.');
+    return { file_name: row.dataset_file_name, content_type: row.dataset_content_type, bytes: row.dataset_bytes };
+  }
+  async saveCharacterTraining(actor: Actor, projectId: string, input: CharacterTrainingDto) {
+    await this.project(actor, projectId, true);
+    const row = await this.db.character_labs.findUnique({ where: { project_id: projectId }, select: { dataset_labels_json: true } });
+    if (!row) throw new BadRequestException('Carga un dataset antes de guardar el entrenamiento.');
+    const labels = this.labels(input.labels), datasetLabels = JSON.parse(row.dataset_labels_json) as string[];
+    if (JSON.stringify(labels) !== JSON.stringify(datasetLabels)) throw new BadRequestException('El modelo no corresponde al dataset actual.');
+    const bytes = this.archive(input.archive_base64, 'El modelo');
+    const metrics = { labels, epochs: input.epochs, accuracy: input.accuracy, loss: input.loss, history: input.history };
+    await this.db.character_labs.update({ where: { project_id: projectId }, data: {
+      model_file_name: input.file_name, model_content_type: input.content_type, model_bytes: bytes,
+      training_metrics_json: JSON.stringify(metrics), training_updated_at: new Date()
+    } });
+    return this.characterLab(actor, projectId);
+  }
+  async characterModelFile(actor: Actor, projectId: string) {
+    await this.project(actor, projectId);
+    const row = await this.db.character_labs.findUnique({ where: { project_id: projectId }, select: { model_file_name: true, model_content_type: true, model_bytes: true } });
+    if (!row?.model_file_name || !row.model_content_type || !row.model_bytes) throw new NotFoundException('AÃºn no hay un modelo entrenado para este proyecto.');
+    return { file_name: row.model_file_name, content_type: row.model_content_type, bytes: row.model_bytes };
+  }
+  async clearCharacterLab(actor: Actor, projectId: string) {
+    await this.project(actor, projectId, true);
+    await this.db.character_labs.deleteMany({ where: { project_id: projectId } });
   }
   private graph(blocks: Record<string, unknown>): string {
     const fail = () => { throw new BadRequestException('Grafo inválido: schemaVersion 1, nodos y aristas válidos; máximo 64 KiB.'); };
