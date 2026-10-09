@@ -100,6 +100,7 @@ const {BrowserRouter}=await import('react-router')
 const {AuthProvider,Gate,api,setToken,getToken,useProjectStore}=await import('../.test-build/ui/entry.js')
 let root
 function fresh(){
+  for(const key of [...Object.keys(sessionStorage)])if(key.startsWith('aiblocks.login-throttle.'))sessionStorage.removeItem(key)
   current={users:['student','teacher','admin'].map((role,i)=>({id:uid(i+1),username:role,display_name:'Test '+role,role,status:'active',must_change_password:false,password:PASSWORD})),tokens:new Map(),sequence:0,requests:[],projects:[],progress:[],simulations:[],workspaces:new Map(),consents:new Set([uid(1)]),enrolled:new Set()}
   current.rooms=[{id:uid(50),teacher_id:uid(2),name:'Salon piloto',course_id:uid(90),level_id:1,academic_year:2026,status:'active'}]
   current.enrolled.add(uid(50)+':'+uid(1))
@@ -125,6 +126,12 @@ test('unauthenticated deep link redirects to login; incorrect password shows err
   await mount('/proyectos/'+uid(40));assert.equal(window.location.pathname,'/login')
   await login('student','incorrect');assert.match(text(),/Usuario o contraseña incorrectos/);assert.equal(field('Contraseña').value,'')
   await login();assert.equal(window.location.pathname,'/proyectos/'+uid(40));assert.match(text(),/Proyecto persistido/)
+}))
+test('the login form temporarily blocks a username after three wrong passwords',()=>fixture(async()=>{
+  await mount();await login('locked_user','incorrect');await login('locked_user','incorrect');await login('locked_user','incorrect')
+  assert.match(text(),/3 intentos fallidos/);assert.match(text(),/60 segundos/)
+  const button=[...document.querySelectorAll('button')].find(item=>item.textContent.includes('Espera'))
+  assert.ok(button?.disabled)
 }))
 test('public landing presents the product and sends visitors to login',()=>fixture(async()=>{
   await mount('/');assert.match(text(),/Entrena un modelo que/);await click('Iniciar sesión');assert.equal(window.location.pathname,'/login')
