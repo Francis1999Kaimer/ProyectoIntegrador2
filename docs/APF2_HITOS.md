@@ -6,8 +6,8 @@ El producto busca un primer despliegue verificable, no la totalidad del currícu
 |---|---|---|
 | 1 | Alinear arquitectura, README, entorno MySQL/MariaDB y Plesk | Completado |
 | 2 | Modelo físico de BD, SQL, seed, relaciones e índices | Pruebas locales superadas en MySQL 8.0.39; MariaDB pendiente |
-| 3 | Backend NestJS, Prisma, configuración y health check | Implementado; pendiente de baseline y prueba en MySQL local |
-| 4 | Repository Pattern y diagrama de clases | Pendiente |
+| 3 | Backend NestJS, Prisma, configuración y health check | Pruebas locales superadas: baseline 0_init, estado actualizado y health ok/up |
+| 4 | Repository Pattern y diagrama de clases | Implementado; pendiente de prueba local de repositorios |
 | 5 | Login, JWT, roles y permisos | Pendiente |
 | 6 | APIs reales: alumnos, salones, proyectos, workspaces, progreso | Pendiente |
 | 7 | Conectar frontend actual con backend y reemplazar mocks esenciales | Pendiente |
@@ -44,3 +44,16 @@ git pull origin main. Los PASS del hito 2 fueron aportados por el usuario el 9 d
 de 2026: MySQL 8.0.39, 17 tablas, 24 FK, 3 niveles, 24 semanas y 3 clases/retos piloto.
 Después del baseline hay una tabla técnica adicional _prisma_migrations.
 La visualización de tildes en la terminal queda pendiente de comprobar con cliente UTF-8.
+
+## Hito 4
+
+Seis contratos sin dependencia de Prisma, seis implementaciones Prisma, tokens Symbol,
+RepositoriesModule, ProjectsModule y ProjectService. Documentación y diagrama:
+[REPOSITORY_PATTERN.md](REPOSITORY_PATTERN.md). Las lecturas son paginadas y filtradas;
+los datos públicos de usuario excluyen password_hash. Pruebas de sustitución del repositorio
+en NestJS, límites, filtros y proyecciones. La prueba real de solo lectura
+npm run test:repositories:db debe ejecutarse en el PC después de git pull origin main.
+
+Aceptación del hito 3: evidencia del usuario del 9 de octubre de 2026 confirma introspección,
+baseline aplicado sin recrear tablas, Database schema is up to date y GET /health ok/up.
+Mantener pendiente la revisión de vulnerabilidades reportadas por npm ci.
