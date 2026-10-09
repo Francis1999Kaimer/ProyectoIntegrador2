@@ -11,6 +11,7 @@ import { useProjectStore, type ProjectLevel } from './store/project'
 import { Header, Page, workflow } from './components/AppShell'
 import { Dashboard, ProjectsPage, ProjectDetail, ClassroomsPage, ClassroomDetail } from './components/ConnectedPages'
 import { StudentsPage } from './components/StudentsPage'
+import { TeachersPage } from './components/TeachersPage'
 
 type IconType = typeof Home
 
@@ -59,4 +60,4 @@ model.compile(optimizer="adam", metrics=["accuracy"])`}</code></pre><div classNa
 
 function NotFound(){return <Page><div className="empty-state"><h1>404</h1><p>Esta pantalla todavía no existe.</p><Link className="button-link primary" to="/">Volver al inicio</Link></div></Page>}
 
-export default function App(){return <Routes><Route path="/" element={<Dashboard/>}/><Route path="/proyectos" element={<ProjectsPage/>}/><Route path="/proyectos/:id" element={<ProjectDetail/>}/><Route path="/salones" element={<ClassroomsPage/>}/><Route path="/salones/:id" element={<ClassroomDetail/>}/><Route path="/alumnos" element={<StudentsPage/>}/><Route path="/dataset" element={<DatasetPage/>}/><Route path="/preparacion" element={<PreparationPage/>}/><Route path="/modelo" element={<ModelPage/>}/><Route path="/editor" element={<EditorPage/>}/><Route path="/entrenamiento" element={<TrainingPage/>}/><Route path="/evaluacion" element={<EvaluationPage/>}/><Route path="/prediccion" element={<PredictionPage/>}/><Route path="*" element={<NotFound/>}/></Routes>}
+export default function App(){return <Routes><Route path="/" element={<Dashboard/>}/><Route path="/proyectos" element={<ProjectsPage/>}/><Route path="/proyectos/:id" element={<ProjectDetail/>}/><Route path="/salones" element={<ClassroomsPage/>}/><Route path="/salones/:id" element={<ClassroomDetail/>}/><Route path="/alumnos" element={<StudentsPage/>}/><Route path="/docentes" element={<TeachersPage/>}/><Route path="/dataset" element={<DatasetPage/>}/><Route path="/preparacion" element={<PreparationPage/>}/><Route path="/modelo" element={<ModelPage/>}/><Route path="/editor" element={<EditorPage/>}/><Route path="/entrenamiento" element={<TrainingPage/>}/><Route path="/evaluacion" element={<EvaluationPage/>}/><Route path="/prediccion" element={<PredictionPage/>}/><Route path="*" element={<NotFound/>}/></Routes>}

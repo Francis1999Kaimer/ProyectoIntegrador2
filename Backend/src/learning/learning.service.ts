@@ -2,7 +2,7 @@ import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundEx
 import { PasswordService } from '../auth/password.service';
 import { PageRequest, Project, Workspace } from '../repositories/contracts';
 import { Actor, LEARNING_REPOSITORY, LearningRepository } from '../repositories/learning.contracts';
-import { ClassroomDto, ClassroomPatchDto, ConsentDto, ProjectDto, ProjectPatchDto, StudentDto, WorkspaceDto } from './learning.dto';
+import { ClassroomDto, ClassroomPatchDto, ConsentDto, ProjectDto, ProjectPatchDto, StudentDto, TeacherDto, WorkspaceDto } from './learning.dto';
 
 @Injectable()
 export class LearningService {
@@ -10,12 +10,19 @@ export class LearningService {
     private readonly passwords: PasswordService) {}
   catalog() { return this.repo.catalog(); }
   students(actor: Actor, page: PageRequest) { return this.repo.listStudents(actor, page); }
+  teachers(page: PageRequest) { return this.repo.listTeachers(page); }
   async createStudent(input: StudentDto) {
     return this.repo.createStudent({ username: input.username, display_name: input.display_name,
       password_hash: await this.passwords.hash(input.password) });
   }
+  async createTeacher(input: TeacherDto) {
+    return this.repo.createTeacher({ username: input.username, display_name: input.display_name,
+      password_hash: await this.passwords.hash(input.password) });
+  }
   studentStatus(id: string, status: string) { return this.repo.setStudentStatus(id, status); }
+  teacherStatus(id: string, status: string) { return this.repo.setTeacherStatus(id, status); }
   consent(id: string, input: ConsentDto) { return this.repo.recordConsent(id, input); }
+  currentConsent(id: string) { return this.repo.currentConsent(id); }
   revokeConsent(id: string) { return this.repo.revokeConsent(id); }
   classrooms(actor: Actor, page: PageRequest) { return this.repo.listClassrooms(actor, page); }
   async classroom(actor: Actor, id: string, manage = false) {
@@ -45,6 +52,10 @@ export class LearningService {
   async classroomStudents(actor: Actor, id: string, page: PageRequest) {
     await this.classroom(actor, id, true);
     return this.repo.classroomStudents(id, page);
+  }
+  async eligibleStudents(actor: Actor, id: string, page: PageRequest) {
+    await this.classroom(actor, id, true);
+    return this.repo.eligibleStudents(id, page);
   }
   async enroll(actor: Actor, id: string, studentId: string) {
     await this.classroom(actor, id, true);

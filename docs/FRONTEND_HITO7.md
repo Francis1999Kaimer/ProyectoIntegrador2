@@ -8,8 +8,9 @@ El frontend conserva la experiencia visual existente y ahora consume la API Nest
 - Protección de rutas, roles y obligación de cambiar contraseña.
 - Consulta y creación de proyectos del usuario autenticado.
 - Selección del proyecto para las pantallas de dataset, preparación y modelo. Estas tres pantallas continúan siendo ejemplos educativos: todavía no guardan sus cambios.
-- Salones, creación por docente/admin, matrícula y retiro, lecciones y progreso de lectura.
+- Salones, creación por docente/admin, matrícula y retiro mediante selectores, lecciones y progreso de lectura.
 - Alta de alumnos pendiente, consentimiento y activación por administrador.
+- Gestión de docentes exclusiva para administrador: alta, listado, activación y suspensión. Las cuentas nuevas deben cambiar su contraseña al ingresar.
 - Mensajes seguros para errores HTTP, expiración de sesión y reintentos.
 
 ## Prueba local en Windows
@@ -42,9 +43,11 @@ Inicia sesión con una de las cuentas demo locales que ya creaste durante el hit
 Comprueba al menos este recorrido:
 
 1. Alumno: iniciar sesión, crear un proyecto, abrirlo y registrar la lectura de una lección matriculada.
-2. Docente: crear un salón y matricular a un alumno activo usando el identificador que muestra la vista de administración.
-3. Administrador: registrar un alumno, guardar el consentimiento y activarlo.
-4. Cambiar la contraseña de una cuenta; la aplicación debe cerrar la sesión y pedir el nuevo inicio de sesión.
+2. Docente: crear un salón y matricular a un alumno activo desde el selector; no se escriben UUIDs.
+3. Administrador: registrar un docente, comprobar que aparece activo y suspender/reactivar su cuenta.
+4. Administrador: registrar un alumno, guardar el consentimiento y activarlo.
+5. Administrador: crear un salón seleccionando al docente responsable.
+6. Cambiar la contraseña de una cuenta nueva; la aplicación debe cerrar la sesión y pedir el nuevo inicio de sesión.
 
 Las pruebas automáticas del frontend simulan HTTP para cubrir formularios, rutas protegidas, roles, expiración, errores, progreso y XSS. La demostración anterior es la evidencia de integración real con tu MySQL local.
 

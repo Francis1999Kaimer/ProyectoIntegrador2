@@ -17,11 +17,15 @@ null en campos opcionales, texto vacío y PATCH vacío se rechazan con 400.
 | PATCH /students/:id/status | admin: pending/active/suspended; activar exige consentimiento vigente |
 | POST /students/:id/consents | admin: registra nueva evidencia, sin devolver nombre/contacto del tutor |
 | DELETE /students/:id/consents/current | admin: revoca consentimientos vigentes y suspende al alumno (204) |
+| GET /teachers | admin: docentes, con id, username, display_name y status |
+| POST /teachers | admin: crea docente activo, bcrypt coste 12, must_change_password=true |
+| PATCH /teachers/:id/status | admin: activa o suspende al docente |
 | GET /classrooms | admin: todos; teacher: propios; student: matriculados |
 | GET /classrooms/:id | Misma autorización por salón |
 | POST /classrooms | teacher: se asigna a sí mismo; admin: debe indicar teacher_id activo |
 | PATCH /classrooms/:id | Docente del salón/admin: nombre, escuela o estado active/archived |
 | GET /classrooms/:id/students | Docente del salón/admin: id, username, display_name y status |
+| GET /classrooms/:id/eligible-students | Docente del salón/admin: alumnos activos con consentimiento que aún no están matriculados |
 | POST /classrooms/:id/students | Docente del salón/admin: matrícula idempotente (200) |
 | DELETE /classrooms/:id/students/:studentId | Docente del salón/admin: retira matrícula (204) |
 | GET /classrooms/:id/lessons | Acceso al salón; lecciones publicadas de su curso/nivel, salón activo |
@@ -44,6 +48,8 @@ Los errores de driver no se imprimen ni se incluyen en la respuesta.
 
 POST /students: username, display_name y password (12 caracteres, máximo 72 bytes UTF-8).
 El alumno se crea pending. No hay alta pública ni rol/status elegidos por el cliente.
+POST /teachers usa los mismos campos, solo está disponible para admin y crea una cuenta
+activa que debe cambiar la contraseña inicial. No existe alta pública de docentes.
 POST consent: guardian_name, consent_version y guardian_contact_email opcional. La fecha
 la establece el servidor. El administrador debe tener evidencia válida antes de registrar
 consentimiento real: este endpoint registra evidencia, no verifica identidad ni sustituye

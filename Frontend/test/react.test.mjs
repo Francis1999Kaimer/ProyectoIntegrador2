@@ -48,6 +48,7 @@ globalThis.fetch=async(url,options={})=>{
     const [,,id,resource,studentId]=path.split('/'),room=current.rooms.find(r=>r.id===id)
     if(!room)return json(404,{})
     if(resource==='lessons')return json(200,[current.lesson])
+    if(resource==='eligible-students')return json(200,current.users.filter(s=>s.role==='student'&&s.status==='active'&&!current.enrolled.has(id+':'+s.id)).map(({password,...s})=>s))
     if(resource==='students'){
       if(method==='POST'){current.enrolled.add(id+':'+body.student_id);return json(200,{})}
       if(method==='DELETE'){current.enrolled.delete(id+':'+studentId);return json(204)}
@@ -64,9 +65,20 @@ globalThis.fetch=async(url,options={})=>{
     if(method==='POST'){const s={id:uid(++current.sequence+300),username:body.username,display_name:body.display_name,password:body.password,role:'student',status:'pending',must_change_password:true};current.users.push(s);const {password,...profile}=s;return json(201,profile)}
     return json(200,current.users.filter(u=>u.role==='student').map(({password,...u})=>u))
   }
+  if(path==='/teachers'){
+    if(method==='POST'){const t={id:uid(++current.sequence+400),username:body.username,display_name:body.display_name,password:body.password,role:'teacher',status:'active',must_change_password:true};current.users.push(t);const {password,...profile}=t;return json(201,profile)}
+    return json(200,current.users.filter(u=>u.role==='teacher').map(({password,...u})=>u))
+  }
+  if(path.startsWith('/teachers/')){
+    const id=path.split('/')[2],t=current.users.find(u=>u.id===id)
+    if(path.endsWith('/status')){t.status=body.status;return json(200,{id:t.id,status:t.status})}
+  }
   if(path.startsWith('/students/')){
     const [,,id,resource]=path.split('/'),s=current.users.find(u=>u.id===id)
-    if(resource==='consents'){current.consents.add(id);return json(method==='DELETE'?204:201,{})}
+    if(resource==='consents'){
+      if(method==='GET')return json(200,current.consents.has(id)?{guardian_name:'Tutor sintetico DOM',consent_version:'unit-test-v1',consented_at:'2026-10-09T10:00:00Z'}:null)
+      current.consents.add(id);return json(method==='DELETE'?204:201,{})
+    }
     if(resource==='status'){if(body.status==='active'&&!current.consents.has(id))return json(409,{});s.status=body.status;return json(200,{id:s.id,status:s.status})}
   }
   return json(404,{})
@@ -76,7 +88,7 @@ const {BrowserRouter}=await import('react-router')
 const {AuthProvider,Gate,api,setToken,getToken,useProjectStore}=await import('../.test-build/ui/entry.js')
 let root
 function fresh(){
-  current={users:['student','teacher','admin'].map((role,i)=>({id:uid(i+1),username:role,display_name:'Test '+role,role,status:'active',must_change_password:false,password:PASSWORD})),tokens:new Map(),sequence:0,requests:[],projects:[],progress:[],consents:new Set(),enrolled:new Set()}
+  current={users:['student','teacher','admin'].map((role,i)=>({id:uid(i+1),username:role,display_name:'Test '+role,role,status:'active',must_change_password:false,password:PASSWORD})),tokens:new Map(),sequence:0,requests:[],projects:[],progress:[],consents:new Set([uid(1)]),enrolled:new Set()}
   current.rooms=[{id:uid(50),teacher_id:uid(2),name:'Salon piloto',course_id:uid(90),level_id:1,academic_year:2026,status:'active'}]
   current.enrolled.add(uid(50)+':'+uid(1))
   current.lesson={id:uid(60),title:'Leccion piloto',summary:'Contenido publicado',content:{sections:Array.from({length:5},(_,i)=>({title:'Seccion '+(i+1),text:i===0?'<img src=x onerror=alert(1)>':'Texto de lectura'}))}}
@@ -115,9 +127,17 @@ test('project creation uses API, persists metadata, survives session restore and
 test('teacher classroom form, roster enrollment and removal use real component event flow',()=>fixture(async()=>{
   await mount();await login('teacher');await click('Salones');await click('Crear salón');await fill('Nombre','Salon nuevo DOM');await fill('Nivel','1');await fill('Curso',uid(90));await submit('Nombre')
   const room=current.rooms.find(r=>r.name==='Salon nuevo DOM');assert.ok(room);assert.equal(room.teacher_id,uid(2))
-  await click('Salon nuevo DOMAño 2026Activo');await fill('ID del alumno',uid(1));await submit('ID del alumno')
+  await click('Salon nuevo DOMAño 2026Activo');await fill('Alumno',uid(1));await submit('Alumno')
   assert.match(text(),/Test student/);assert.ok(current.enrolled.has(room.id+':'+uid(1)))
   await click('Retirar matrícula');assert.ok(!current.enrolled.has(room.id+':'+uid(1)))
+}))
+test('admin selects an active teacher instead of entering a classroom UUID',()=>fixture(async()=>{
+  await mount();await login('admin');await click('Salones');await click('Crear salón');await fill('Nombre','Salon admin DOM');await fill('Nivel','1');await fill('Curso',uid(90));await fill('Docente responsable',uid(2));await submit('Nombre')
+  const room=current.rooms.find(r=>r.name==='Salon admin DOM');assert.ok(room);assert.equal(room.teacher_id,uid(2))
+}))
+test('admin sees the responsible teacher in classroom details',()=>fixture(async()=>{
+  await mount();await login('admin');await click('Salones');await click('Salon pilotoAño 2026Activo');await settle()
+  assert.match(text(),/Docente responsable: Test teacher · teacher/)
 }))
 test('student lesson content is escaped and reading progress is written and refreshed',()=>fixture(async()=>{
   await mount();await login();await click('Salones');await click('Salon pilotoAño 2026Activo');await click('Leccion piloto')
@@ -149,6 +169,13 @@ test('admin creates pending student, registers consent and activates through con
   const refreshed=[...document.querySelectorAll('.roster-list li')].find(l=>l.textContent.includes('Alumno DOM'))
   await act(async()=>{[...refreshed.querySelectorAll('button')].find(b=>b.textContent==='Activar').click();await Promise.resolve()})
   assert.equal(student.status,'active')
+}))
+
+test('admin manages teacher accounts through connected forms',()=>fixture(async()=>{
+  await mount();await login('admin');await click('Docentes');await click('Registrar docente');await fill('Usuario','new_teacher');await fill('Nombre visible','Docente DOM');await fill('Contraseña inicial',PASSWORD);await submit('Usuario')
+  const teacher=current.users.find(u=>u.username==='new_teacher');assert.ok(teacher);assert.equal(teacher.role,'teacher');assert.equal(teacher.status,'active');assert.equal(teacher.must_change_password,true)
+  let row=[...document.querySelectorAll('.roster-list li')].find(l=>l.textContent.includes('Docente DOM'));await act(async()=>{row.querySelector('button').click();await Promise.resolve()});assert.equal(teacher.status,'suspended')
+  row=[...document.querySelectorAll('.roster-list li')].find(l=>l.textContent.includes('Docente DOM'));await act(async()=>{row.querySelector('button').click();await Promise.resolve()});assert.equal(teacher.status,'active')
 }))
 
 

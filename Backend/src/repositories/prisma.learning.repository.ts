@@ -7,6 +7,7 @@ import { pagination } from './pagination';
 import { Actor, ClassroomPatch, ConsentInput, DataConflict, DataMissing, LearningRepository, NewClassroom, NewStudent, ProgressAccess, ProjectPatch } from './learning.contracts';
 
 const studentSelect = { id: true, username: true, display_name: true, status: true } as const;
+const teacherSelect = { id: true, username: true, display_name: true, status: true } as const;
 const lessonSelect = { id: true, level_id: true, course_week_id: true, title: true, summary: true, content_json: true, duration_minutes: true } as const;
 const serial = { isolationLevel: Prisma.TransactionIsolationLevel.Serializable };
 
@@ -56,6 +57,12 @@ export class PrismaLearningRepository implements LearningRepository {
       password_hash: input.password_hash, role: 'student', status: 'pending', must_change_password: true
     }, select: studentSelect }));
   }
+  createTeacher(input: NewStudent) {
+    return this.write(() => this.db.users.create({ data: {
+      id: randomUUID(), username: input.username, display_name: input.display_name,
+      password_hash: input.password_hash, role: 'teacher', status: 'active', must_change_password: true
+    }, select: teacherSelect }));
+  }
   setStudentStatus(id: string, status: string) {
     return this.write(() => this.db.$transaction(async tx => {
       const student = await tx.users.findFirst({ where: { id, role: 'student' } });
@@ -75,6 +82,25 @@ export class PrismaLearningRepository implements LearningRepository {
         consent_version: input.consent_version, consented_at: new Date()
       }, select: { id: true, student_id: true, consented_at: true } });
     }, serial));
+  }
+  setTeacherStatus(id: string, status: string) {
+    return this.write(() => this.db.$transaction(async tx => {
+      const teacher = await tx.users.findFirst({ where: { id, role: 'teacher' } });
+      if (!teacher) throw new DataMissing();
+      return tx.users.update({ where: { id }, data: { status, updated_at: new Date() }, select: teacherSelect });
+    }, serial));
+  }
+  currentConsent(id: string) {
+    return this.db.guardian_consents.findFirst({
+      where: { student_id: id, revoked_at: null },
+      orderBy: [{ consented_at: 'desc' }, { recorded_at: 'desc' }, { id: 'desc' }],
+      select: { guardian_name: true, consent_version: true, consented_at: true }
+    });
+  }
+  listTeachers(page: PageRequest) {
+    return this.db.users.findMany({
+      where: { role: 'teacher' }, select: teacherSelect, ...pagination(page), orderBy: [{ display_name: 'asc' }, { id: 'asc' }]
+    });
   }
   revokeConsent(id: string) {
     return this.write(() => this.db.$transaction(async tx => {
@@ -112,6 +138,13 @@ export class PrismaLearningRepository implements LearningRepository {
     return this.db.users.findMany({ where: {
       role: 'student', back_fk_enrollments_student: { some: { classroom_id: id } }
     }, select: studentSelect, ...pagination(page), orderBy: { id: 'asc' } });
+  }
+  eligibleStudents(classroomId: string, page: PageRequest) {
+    return this.db.users.findMany({ where: {
+      role: 'student', status: 'active',
+      back_fk_guardian_consents_student: { some: { revoked_at: null } },
+      NOT: { back_fk_enrollments_student: { some: { classroom_id: classroomId } } }
+    }, select: studentSelect, ...pagination(page), orderBy: [{ display_name: 'asc' }, { id: 'asc' }] });
   }
   enroll(classroomId: string, studentId: string) {
     return this.write(() => this.db.$transaction(async tx => {

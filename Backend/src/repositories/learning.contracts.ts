@@ -3,6 +3,8 @@ import { Classroom, LessonProgress, PageRequest, Project, Workspace } from './co
 // Domain types: no ORM, HTTP or password service dependency.
 export interface Actor { id: string; role: string; }
 export interface Student { id: string; username: string; display_name: string; status: string; }
+export interface Teacher { id: string; username: string; display_name: string; status: string; }
+export interface ConsentSummary { guardian_name: string; consent_version: string; consented_at: Date; }
 export interface NewStudent { username: string; display_name: string; password_hash: string; }
 export interface ConsentInput { guardian_name: string; consent_version: string; guardian_contact_email?: string; }
 export interface NewClassroom {
@@ -23,11 +25,15 @@ export interface ProgressAccess { student_id: string; teacher_id?: string; }
 export interface LearningRepository {
   catalog(): Promise<Catalog>;
   listStudents(actor: Actor, page: PageRequest): Promise<Student[]>;
+  listTeachers(page: PageRequest): Promise<Teacher[]>;
   student(id: string): Promise<Student | null>;
   teacherHasStudent(teacherId: string, studentId: string): Promise<boolean>;
   createStudent(input: NewStudent): Promise<Student>;
+  createTeacher(input: NewStudent): Promise<Teacher>;
   setStudentStatus(id: string, status: string): Promise<Student>;
+  setTeacherStatus(id: string, status: string): Promise<Teacher>;
   recordConsent(id: string, input: ConsentInput): Promise<{ id: string; student_id: string; consented_at: Date }>;
+  currentConsent(id: string): Promise<ConsentSummary | null>;
   revokeConsent(id: string): Promise<void>;
   validTeacher(id: string): Promise<boolean>;
   validCatalog(levelId: number, courseId: string): Promise<boolean>;
@@ -37,6 +43,7 @@ export interface LearningRepository {
   createClassroom(input: NewClassroom): Promise<Classroom>;
   updateClassroom(id: string, input: ClassroomPatch): Promise<Classroom>;
   classroomStudents(id: string, page: PageRequest): Promise<Student[]>;
+  eligibleStudents(classroomId: string, page: PageRequest): Promise<Student[]>;
   enroll(classroomId: string, studentId: string): Promise<void>;
   unenroll(classroomId: string, studentId: string): Promise<void>;
   lessons(classroomId: string, page: PageRequest): Promise<Lesson[]>;

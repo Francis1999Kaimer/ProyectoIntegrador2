@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { ArrowRight, BrainCircuit, FolderOpen, Plus } from 'lucide-react'
 import { api } from '../api/http'
 import { useResource } from '../api/useResource'
-import { statusLabels, typeLabel, type Catalog, type Classroom, type Lesson, type Progress, type Project, type Student } from '../api/types'
+import { statusLabels, typeLabel, type Catalog, type Classroom, type Lesson, type Progress, type Project, type Student, type Teacher } from '../api/types'
 import { useAuth } from '../auth/AuthProvider'
 import { useProjectStore } from '../store/project'
 import { ApiMessage, Page, workflow } from './AppShell'
@@ -45,19 +45,20 @@ export function ProjectDetail() {
 export function ClassroomsPage() {
   const {user}=useAuth(), [offset,setOffset]=useState(0), result=useResource<Classroom[]>('/classrooms?limit=25&offset='+offset)
   const manage=user?.role!=='student', catalog=useResource<Catalog>(manage?'/catalog':null)
+  const teachers=useResource<Teacher[]>(user?.role==='admin'?'/teachers?limit=100&offset=0':null)
   const [name,setName]=useState(''),[level,setLevel]=useState(''),[course,setCourse]=useState(''),[teacher,setTeacher]=useState(''),[date,setDate]=useState(new Date().toISOString().slice(0,10)),[error,setError]=useState(''),[busy,setBusy]=useState(false)
   async function create(e:FormEvent) {e.preventDefault();if(busy)return;setBusy(true);setError('');try{
     await api.request('/classrooms',{method:'POST',body:{name:name.trim(),level_id:Number(level),course_id:course,academic_year:Number(date.slice(0,4)),course_start_date:date,...(user?.role==='admin'?{teacher_id:teacher.trim()}:{})}})
     setName('');setOffset(0);result.reload()
   }catch(e){setError((e as Error).message)}finally{setBusy(false)}}
   return <Page><section className="page-title"><div><h1>Salones</h1><p>{manage?'Administra tus salones y matrículas.':'Consulta los salones donde estás matriculado.'}</p></div></section>
-    {manage&&<details className="panel resource-detail"><summary>Crear salón</summary><ApiMessage {...catalog} retry={catalog.reload}/><form className="api-form" onSubmit={create}>
+    {manage&&<details className="panel resource-detail"><summary>Crear salón</summary><ApiMessage {...catalog} retry={catalog.reload}/>{user?.role==='admin'&&<ApiMessage {...teachers} retry={teachers.reload}/>}<form className="api-form" onSubmit={create}>
       <label>Nombre<input required maxLength={120} value={name} onChange={e=>setName(e.target.value)}/></label>
       <label>Nivel<select required value={level} onChange={e=>setLevel(e.target.value)}><option value="">Selecciona un nivel</option>{catalog.data?.levels.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}</select></label>
       <label>Curso<select required value={course} onChange={e=>setCourse(e.target.value)}><option value="">Selecciona un curso</option>{catalog.data?.courses.map(c=><option key={c.id} value={c.id}>{c.title}</option>)}</select></label>
-      {user?.role==='admin'&&<label>ID del docente activo<input required value={teacher} onChange={e=>setTeacher(e.target.value)} placeholder="UUID del docente"/></label>}
+      {user?.role==='admin'&&<label>Docente responsable<select required value={teacher} onChange={e=>setTeacher(e.target.value)}><option value="">Selecciona un docente activo</option>{teachers.data?.filter(t=>t.status==='active').map(t=><option key={t.id} value={t.id}>{t.display_name} · {t.username}</option>)}</select></label>}
       <label>Fecha de inicio<input required type="date" min="2000-01-01" max="2100-12-31" value={date} onChange={e=>setDate(e.target.value)}/></label>
-      <button className="primary" disabled={busy||!name.trim()||!catalog.data}>{busy?'Creando…':'Crear salón'}</button><ApiMessage error={error}/></form></details>}
+      <button className="primary" disabled={busy||!name.trim()||!catalog.data||(user?.role==='admin'&&!teacher)}>{busy?'Creando…':'Crear salón'}</button><ApiMessage error={error}/></form></details>}
     <ApiMessage {...result} retry={result.reload}/>{result.data?.length===0&&<p className="api-message">No hay salones disponibles para tu cuenta.</p>}
     <div className="card-grid">{result.data?.map(r=><Link className="project-card" key={r.id} to={'/salones/'+r.id}><strong>{r.name}</strong><p>Año {r.academic_year}</p><small>{r.status==='active'?'Activo':'Archivado'}</small></Link>)}</div>
     {!result.loading&&!result.error&&<Paging offset={offset} count={result.data?.length??0} setOffset={setOffset}/>}</Page>
@@ -66,18 +67,22 @@ export function ClassroomDetail() {
   const {id}=useParams(),{user}=useAuth(), manage=user?.role!=='student'
   const room=useResource<Classroom>(id?'/classrooms/'+id:null), [offset,setOffset]=useState(0)
   const roster=useResource<Student[]>(manage&&id?'/classrooms/'+id+'/students?limit=25&offset='+offset:null)
+  const eligible=useResource<Student[]>(manage&&id?'/classrooms/'+id+'/eligible-students?limit=100&offset=0':null)
+  const teachers=useResource<Teacher[]>(user?.role==='admin'?'/teachers?limit=100&offset=0':null)
   const lessons=useResource<Lesson[]>(room.data?.status==='active'?'/classrooms/'+id+'/lessons?limit=100':null)
   const progress=useResource<Progress[]>(user?.role==='student'?'/progress?limit=100':null)
   const [studentId,setStudentId]=useState(''),[selected,setSelected]=useState<Lesson|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('')
-  async function mutation(method:string,path:string,body?:unknown) {if(busy)return;setBusy(true);setError('');setNotice('');try{await api.request(path,{method,body});roster.reload();room.reload();setNotice('Cambio guardado.')}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
+  async function mutation(method:string,path:string,body?:unknown):Promise<boolean> {if(busy)return false;setBusy(true);setError('');setNotice('');try{await api.request(path,{method,body});roster.reload();eligible.reload();room.reload();setNotice('Cambio guardado.');return true}catch(e){setError((e as Error).message);return false}finally{setBusy(false)}}
+  async function enroll(e:FormEvent) { e.preventDefault(); if(await mutation('POST','/classrooms/'+id+'/students',{student_id:studentId})) setStudentId('') }
   async function readSections(count:number) {if(!selected||busy)return;setBusy(true);setError('');try{await api.request('/progress/'+selected.id,{method:'PUT',body:{completed_sections:count}});progress.reload()}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
   const current=progress.data?.find(p=>p.lesson_id===selected?.id)
+  const classroomTeacher=teachers.data?.find(t=>t.id===room.data?.teacher_id)
   return <Page><Link className="back-link" to="/salones">← Volver a salones</Link><ApiMessage {...room} retry={room.reload}/>{room.data&&<>
-    <section className="panel resource-detail"><h1>{room.data.name}</h1><p>Año {room.data.academic_year} · {room.data.status==='active'?'Activo':'Archivado'}</p>
+    <section className="panel resource-detail"><h1>{room.data.name}</h1><p>Año {room.data.academic_year} · {room.data.status==='active'?'Activo':'Archivado'}</p>{user?.role==='admin'&&<p>Docente responsable: {teachers.loading?'Cargando…':classroomTeacher?<><strong>{classroomTeacher.display_name}</strong> · {classroomTeacher.username}</>:'No disponible'}</p>}
     {manage&&<button className="secondary" disabled={busy} onClick={()=>void mutation('PATCH','/classrooms/'+id,{status:room.data!.status==='active'?'archived':'active'})}>{room.data.status==='active'?'Archivar salón':'Reabrir salón'}</button>}
     <ApiMessage error={error}/>{notice&&<p role="status">{notice}</p>}</section>
-    {manage&&<section className="panel resource-detail"><h2>Alumnos matriculados</h2><p>El alumno debe estar activo y tener consentimiento registrado.</p><form className="api-form" onSubmit={e=>{e.preventDefault();void mutation('POST','/classrooms/'+id+'/students',{student_id:studentId.trim()})}}><label>ID del alumno<input required value={studentId} onChange={e=>setStudentId(e.target.value)} placeholder="UUID del alumno"/></label><button className="primary" disabled={busy||room.data.status!=='active'}>Matricular alumno</button></form>
-      <ApiMessage {...roster} retry={roster.reload}/><ul className="roster-list">{roster.data?.map(s=><li key={s.id}><span><strong>{s.display_name}</strong><small>{s.username} · {statusLabels[s.status]??s.status}</small></span><button className="secondary" disabled={busy} onClick={()=>void mutation('DELETE','/classrooms/'+id+'/students/'+s.id)}>Retirar matrícula</button></li>)}</ul>
+    {manage&&<section className="panel resource-detail"><h2>Alumnos matriculados</h2><p>Selecciona un alumno activo con consentimiento vigente.</p><ApiMessage {...eligible} retry={eligible.reload}/><form className="api-form" onSubmit={enroll}><label>Alumno<select required value={studentId} onChange={e=>setStudentId(e.target.value)}><option value="">Selecciona un alumno</option>{eligible.data?.map(s=><option key={s.id} value={s.id}>{s.display_name} · {s.username}</option>)}</select></label><button className="primary" disabled={busy||!studentId||room.data.status!=='active'}>Matricular alumno</button></form>
+      {eligible.data?.length===0&&<p>No hay alumnos activos con consentimiento disponibles.</p>}<ApiMessage {...roster} retry={roster.reload}/><ul className="roster-list">{roster.data?.map(s=><li key={s.id}><span><strong>{s.display_name}</strong><small>{s.username} · {statusLabels[s.status]??s.status}</small></span><button className="secondary" disabled={busy} onClick={()=>void mutation('DELETE','/classrooms/'+id+'/students/'+s.id)}>Retirar matrícula</button></li>)}</ul>
       {roster.data?.length===0&&<p>Aún no hay alumnos matriculados.</p>}{!roster.loading&&!roster.error&&<Paging offset={offset} count={roster.data?.length??0} setOffset={setOffset}/>}</section>}
     {room.data.status==='active'&&<section className="panel resource-detail"><h2>Lecciones</h2><ApiMessage {...lessons} retry={lessons.reload}/>{lessons.data?.length===0&&<p>Este curso y nivel todavía no tienen lecciones publicadas.</p>}
       <div className="lesson-list">{lessons.data?.map(l=><button className="secondary" key={l.id} onClick={()=>setSelected(l)}>{l.title}</button>)}</div>

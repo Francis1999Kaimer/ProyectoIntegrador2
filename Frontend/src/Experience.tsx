@@ -43,5 +43,6 @@ export function Gate() {
   if(user.must_change_password&&location.pathname!=='/cambiar-clave') return <Navigate to="/cambiar-clave" replace/>
   if(location.pathname==='/cambiar-clave') return <PasswordPage/>
   if(location.pathname==='/alumnos'&&user.role==='student') return <Navigate to="/" replace/>
+  if(location.pathname==='/docentes'&&user.role!=='admin') return <Navigate to="/" replace/>
   return <RoutedExperience key={user.id+':'+user.role}/>
 }

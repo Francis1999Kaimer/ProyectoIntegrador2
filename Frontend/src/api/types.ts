@@ -3,6 +3,8 @@ export interface User { id: string; username: string; display_name: string; role
 export interface Project { id: string; owner_id: string; classroom_id: string | null; title: string; project_type: string; status: string; created_at: string; updated_at: string }
 export interface Classroom { id: string; teacher_id: string; level_id: number; course_id: string; name: string; school_name: string | null; academic_year: number; course_start_date: string; status: string }
 export interface Student { id: string; username: string; display_name: string; status: string }
+export interface Teacher { id: string; username: string; display_name: string; status: string }
+export interface Consent { guardian_name: string; consent_version: string; consented_at: string }
 export interface Catalog { levels: { id: number; name: string; slug: string }[]; courses: { id: string; title: string; slug: string }[] }
 export interface Section { type?: string; title?: string; text?: string; questions?: { question: string; options: string[] }[] }
 export interface Lesson { id: string; title: string; summary: string; content: { sections: Section[] } }

@@ -13,7 +13,9 @@ export class StudentDto {
   @Transform(trim) @IsString() @Length(1, 120) display_name!: string;
   @IsString() @Length(12, 72) password!: string;
 }
+export class TeacherDto extends StudentDto {}
 export class StudentStatusDto { @IsIn(['pending', 'active', 'suspended']) status!: string; }
+export class TeacherStatusDto { @IsIn(['active', 'suspended']) status!: string; }
 export class ConsentDto {
   @Transform(trim) @IsString() @Length(1, 120) guardian_name!: string;
   @Transform(trim) @IsString() @Length(1, 32) consent_version!: string;

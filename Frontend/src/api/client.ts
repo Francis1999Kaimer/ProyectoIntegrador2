@@ -5,7 +5,10 @@ export interface RequestOptions { method?: string; body?: unknown; signal?: Abor
 export class ApiClient {
   private readonly base: string
   constructor(base: string, private readonly token: () => string | null,
-    private readonly expired: (token: string) => void, private readonly transport: typeof fetch = fetch,
+    private readonly expired: (token: string) => void,
+    // Keep the browser's Window as the receiver. Calling an extracted fetch as an
+    // ApiClient method can fail in browsers even though mocked transports pass tests.
+    private readonly transport: typeof fetch = (...args) => globalThis.fetch(...args),
     private readonly timeout = 20000) {
     const url = new URL(base)
     if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) throw new Error('VITE_API_URL inválida.')
@@ -36,7 +39,11 @@ export class ApiClient {
         throw new ApiError(response.status, messages[response.status] ?? 'El servicio no está disponible. Intenta de nuevo.')
       }
       if (response.status === 204) return undefined as T
-      return await response.json() as T
+      // Nest sends an empty 200 response when a query legitimately has no
+      // result (for example, a student with no current consent). Do not turn
+      // that valid state into a misleading network error.
+      const payload = await response.text()
+      return (payload ? JSON.parse(payload) : undefined) as T
     } catch (error) {
       if (error instanceof ApiError) throw error
       if (options.signal?.aborted) throw new DOMException('Solicitud cancelada.', 'AbortError')

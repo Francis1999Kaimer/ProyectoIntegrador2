@@ -10,7 +10,7 @@ El producto busca un primer despliegue verificable, no la totalidad del currícu
 | 4 | Repository Pattern y diagrama de clases | Pruebas locales superadas: 11 tests, seis repositorios en MySQL y health ok/up |
 | 5 | Login, JWT, roles y permisos | Pruebas locales superadas: 19 tests, tres roles, JWT rechazados y health ok/up |
 | 6 | APIs reales: alumnos, salones, proyectos, workspaces, progreso | Pruebas locales superadas con MySQL: escrituras, permisos, concurrencia y revocación |
-| 7 | Conectar frontend actual con backend y reemplazar mocks esenciales | Implementado; pruebas UI/compilación superadas, pendiente de demostración local con la API |
+| 7 | Conectar frontend actual con backend y reemplazar mocks esenciales | Implementado; pruebas UI/compilación superadas y administración de alumnos, docentes, salones, matrículas, proyectos y lecciones conectada |
 | 8 | Persistir editor React Flow y resultados de entrenamiento pedagógico | Pendiente |
 | 9 | Validaciones, controles de seguridad y auditoría | Pendiente |
 | 10 | Documentación APF2: BD, replicación, cifrado, pruebas y despliegue | Pendiente |
@@ -92,7 +92,9 @@ y GET /health ok/up. Reseteo de las claves demo confirmado en MySQL local; no se
 
 El frontend React conserva el diseño y consume la API NestJS mediante un cliente HTTP tipado.
 Incluye sesión en `sessionStorage`, rutas protegidas, redirección por rol/cambio de clave,
-proyectos, salones, matrícula, lecciones, progreso y administración de alumnos. Los mocks
+proyectos, salones, matrícula, lecciones, progreso y administración de alumnos y docentes.
+El administrador selecciona al docente responsable al crear un salón y la matrícula usa
+selectores de alumnos elegibles, sin UUIDs manuales. Los mocks
 esenciales fueron reemplazados en esos recorridos; dataset, preparación, modelo, editor y
 entrenamiento siguen declarados como experiencia educativa hasta el hito 8.
 

@@ -12,6 +12,16 @@ test('HTTP client sends Bearer, JSON and no cookies; login omits Bearer',async()
   await client.request('/auth/login',{auth:false,method:'POST',body:{username:'test',password:'test-only'}})
   assert.equal(calls[1].options.headers.Authorization,undefined)
 })
+test('default transport preserves the global fetch receiver',async()=>{
+  const original=globalThis.fetch
+  let receiver
+  globalThis.fetch=async function(){receiver=this;return response(200,{ok:true})}
+  try{
+    const client=new ApiClient('http://localhost',()=>null,()=>{})
+    await client.request('/health')
+    assert.equal(receiver,globalThis)
+  }finally{globalThis.fetch=original}
+})
 test('401 invalidates captured session; login and password mistakes do not prematurely invalidate',async()=>{
   const expired=[];const client=new ApiClient('http://localhost',()=> 'old-token',token=>expired.push(token),async()=>response(401,{message:'driver secret'}))
   await assert.rejects(client.request('/projects'),e=>e instanceof ApiError&&e.status===401)
@@ -26,7 +36,9 @@ test('HTTP statuses are actionable and do not expose raw server messages',async(
     await assert.rejects(client.request('/projects'),e=>e instanceof ApiError&&e.status===status&&!/mysql|secret/.test(e.message))
   }
 })
-test('204 succeeds without JSON; malformed successes and transport failures become safe errors',async()=>{
+test('empty successful responses and 204 succeed without JSON; malformed successes and transport failures become safe errors',async()=>{
+  const noConsent=new ApiClient('http://localhost',()=>null,()=>{},async()=>new Response(null,{status:200}))
+  assert.equal(await noConsent.request('/students/id/consents/current'),undefined)
   const empty=new ApiClient('http://localhost',()=>null,()=>{},async()=>response(204))
   assert.equal(await empty.request('/resource',{method:'DELETE'}),undefined)
   for(const transport of [async()=>new Response('<html>bad gateway</html>'),async()=>{throw Error('private network details')}]){
