@@ -40,8 +40,8 @@ npm run start:dev
 Detenerse ante errores. `db pull --print` introspecta sin modificar el modelo versionado.
 Es normal que Prisma advierta que no representa CHECK. No ejecutar `db push` ni `migrate reset`.
 Después del baseline se esperan 18 tablas: las 17 del producto más `_prisma_migrations`.
-La verificación del hito 2 cuenta todas las tablas y dará 18 tras registrar Prisma;
-ese cambio no significa que se haya perdido una tabla.
+La verificación del hito 2 cuenta solo las 17 tablas del producto y debe seguir dando PASS;
+SHOW TABLES mostrará también la tabla técnica de Prisma.
 
 En otra ventana PowerShell:
 
