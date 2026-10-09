@@ -22,7 +22,7 @@ async function fixture() {
     status: 'active', email: null, must_change_password: false, password_hash: hash
   }));
   const [a, b, t, other, admin] = users;
-  const course = randomUUID(), secondCourse = randomUUID(), lessonId = randomUUID();
+  const course = '10000000-0000-4000-8000-000000000001', secondCourse = randomUUID(), lessonId = randomUUID();
   const room = { id: randomUUID(), teacher_id: t.id, level_id: 1, course_id: course, status: 'active', name: 'Owned room' };
   const otherRoom = { id: randomUUID(), teacher_id: other.id, level_id: 1, course_id: secondCourse, status: 'active', name: 'Other room' };
   const rooms = [room, otherRoom];
@@ -64,7 +64,7 @@ async function fixture() {
     },
     unenroll: async (id, student) => { enrollments.delete(id + ':' + student); },
     lessons: async id => { if (rooms.find(r => r.id === id)?.status !== 'active') throw new DataMissing(); return [lesson]; },
-    lessonForStudent: async (id, student) => id === lessonId && room.status === 'active' && enrollments.has(room.id + ':' + student) ? lesson : null,
+    lessonForStudent: async (id, student) => id === lessonId && rooms.some(r => r.course_id === course && r.level_id === 1 && r.status === 'active' && enrollments.has(r.id + ':' + student)) ? lesson : null,
     listProjects: async actor => projects.filter(p => p.owner_id === actor.id || actor.role === 'admin' || (actor.role === 'teacher' && rooms.some(r => r.id === p.classroom_id && r.teacher_id === actor.id))),
     project: async id => projects.find(p => p.id === id) ?? null,
     createProject: async (owner_id, input) => { const p = { id: randomUUID(), ...input, owner_id, status: 'draft' }; projects.push(p); return p; },
@@ -87,7 +87,11 @@ async function fixture() {
   const authRepo = {
     findForAuthentication: async name => users.find(u => u.username === name) ?? null,
     findCredentialsById: async id => users.find(u => u.id === id) ?? null,
-    updatePassword: async () => false
+    updatePassword: async (id, old, next) => {
+      const user = users.find(u => u.id === id && u.password_hash === old && u.status === 'active');
+      if (!user) return false;
+      user.password_hash = next; user.must_change_password = false; return true;
+    }
   };
   const module = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(USER_REPOSITORY).useValue(authRepo)
@@ -106,7 +110,7 @@ async function fixture() {
     }, body: body === undefined ? undefined : JSON.stringify(body) });
     return { status: response.status, body: response.status === 204 ? null : await response.json() };
   }
-  return { app, users, a, b, t, other, admin, course, room, otherRoom, projects, repo, call, lessonId, progress, snapshots };
+  return { app, base, users, a, b, t, other, admin, course, room, rooms, otherRoom, projects, repo, call, lessonId, progress, snapshots, workspaces, enrollments };
 }
 const graph = { schemaVersion: 1, nodes: [{ id: 'n1', position: { x: 0, y: 0 }, data: { label: 'Input' } }], edges: [] };
 async function withFixture(run) { const f = await fixture(); try { await run(f); } finally { await f.app.close(); } }
@@ -246,4 +250,37 @@ test('business error filter returns generic 503 without driver secrets', () => w
   const response=await f.call(f.a,'GET','/projects/'+f.projects[0].id);
   assert.equal(response.status,503);
   assert.doesNotMatch(JSON.stringify(response.body),/mysql|password|secret/);
+}));
+
+
+test('local smoke script completes all HTTP stages and archives only its synthetic records (DB double)', () => withFixture(async f => {
+  f.a.username = 'aiblocks_demo_student'; f.t.username = 'aiblocks_demo_teacher'; f.admin.username = 'aiblocks_demo_admin';
+  const originalStatus = f.users.slice(0,5).map(u => u.status);
+  const env = { NODE_ENV: process.env.NODE_ENV, PORT: process.env.PORT, DEMO_PASSWORD: process.env.DEMO_PASSWORD };
+  process.env.NODE_ENV = 'development'; process.env.PORT = new URL(f.base).port; process.env.DEMO_PASSWORD = PASSWORD;
+  const Module = require('node:module'); const load = Module._load;
+  const logs = [], log = console.log, error = console.error;
+  class ReadOnlyPrismaDouble {
+    workspaces = { findUniqueOrThrow: async ({where}) => f.workspaces.get(where.project_id) };
+    workspace_versions = { count: async ({where}) => f.snapshots.filter(s => s.id === where.workspace_id).length };
+    classroom_enrollments = { count: async ({where}) => f.enrollments.has(where.classroom_id + ':' + where.student_id) ? 1 : 0 };
+    lesson_progress = { findUniqueOrThrow: async ({where}) => f.progress.find(p => p.student_id === where.student_id_lesson_id.student_id && p.lesson_id === where.student_id_lesson_id.lesson_id) };
+    async $disconnect() {}
+  }
+  try {
+    Module._load = function(name, ...args) { return name === '@prisma/client' ? {PrismaClient:ReadOnlyPrismaDouble} : load.call(this,name,...args); };
+    const {run} = require('../scripts/apis-smoke.cjs');
+    Module._load = load;
+    console.log = (...args) => logs.push(args.join(' ')); console.error = (...args) => logs.push(args.join(' '));
+    assert.equal(await run(),true,logs.join('\n'));
+    assert.ok(logs.some(l=>l.startsWith('PASS: APIs hito 6')));
+    assert.deepEqual(f.users.slice(0,5).map(u=>u.status),originalStatus);
+    assert.equal(f.users[5].status,'suspended');
+    assert.equal(f.rooms[2].status,'archived'); assert.equal(f.projects[1].status,'archived');
+    assert.equal(f.room.status,'active'); assert.equal(f.projects[0].status,'draft');
+  } finally {
+    Module._load = load; console.log = log; console.error = error;
+    for (const [key,value] of Object.entries(env)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
+    process.exitCode = undefined;
+  }
 }));

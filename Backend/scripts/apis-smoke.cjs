@@ -135,12 +135,22 @@ async function cleanup() {
   for (const job of jobs) { try { await job(); } catch { cleanupFailed = true; } }
   await db.$disconnect();
 }
-main().catch(error => {
-  const status = /^HTTP \d+, esperado \d+$/.test(error.message) ? ' (' + error.message + ')' : '';
-  console.error('FAIL en ' + stage + status + '. Revisa API, .env, seed y limite de login. No compartas claves ni tokens.');
-  process.exitCode = 1;
-}).finally(async () => {
-  await cleanup();
-  if (cleanupFailed) { console.error('FAIL: no se pudo archivar toda la evidencia sintetica. Revisa API antes de repetir.'); process.exitCode = 1; }
-  if (!process.exitCode) console.log('PASS: APIs hito 6 verificadas con MySQL real; evidencia sintetica conservada y archivada.');
-});
+async function run() {
+  let passed = true;
+  try { await main(); } catch (error) {
+    passed = false;
+    const status = /^HTTP \d+, esperado \d+$/.test(error.message) ? ' (' + error.message + ')' : '';
+    console.error('FAIL en ' + stage + status + '. Revisa API, .env, seed y limite de login. No compartas claves ni tokens.');
+  } finally {
+    try { await cleanup(); } catch { cleanupFailed = true; }
+    if (cleanupFailed) {
+      passed = false;
+      console.error('FAIL: no se pudo archivar toda la evidencia sintetica. Revisa API antes de repetir.');
+    }
+  }
+  if (passed) console.log('PASS: APIs hito 6 verificadas con MySQL real; evidencia sintetica conservada y archivada.');
+  else process.exitCode = 1;
+  return passed;
+}
+module.exports = { run };
+if (require.main === module) void run();

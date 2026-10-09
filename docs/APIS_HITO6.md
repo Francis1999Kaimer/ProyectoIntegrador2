@@ -136,9 +136,11 @@ Compartir solo PASS/FAIL y health, sin .env, claves, hashes, tokens o contactos 
 
 ## Validación y alcance
 
-35 pruebas automáticas pasan (19 anteriores y 16 del hito 6). Tests HTTP usan NestJS, JWT, DTO y Guards reales con repositorios sustituidos; tests de
+36 pruebas automáticas pasan (19 anteriores y 17 del hito 6). Tests HTTP usan NestJS, JWT, DTO y Guards reales con repositorios sustituidos; tests de
 adaptadores verifican filtros, proyecciones, transacción de snapshots, CAS y progreso
-condicional. No sustituyen la ejecución real de test:apis:db en el MySQL del usuario.
+condicional. Se ejecuta además el script de integración completo contra HTTP con un doble de BD,
+incluida la finalización que solo archiva/suspende los registros creados. Estas pruebas
+no sustituyen la ejecución real de test:apis:db en el MySQL del usuario.
 La prueba en ese PC y en MariaDB/Plesk sigue pendiente hasta recibir evidencia.
 Frontend conectado (7), simulación/editor integrado (8), auditoría/seguridad general (9)
 y despliegue (12) continúan pendientes. No se agregan dependencias ni se cambia Prisma.
