@@ -53,7 +53,7 @@ cmd /c 'mysql --default-character-set=utf8mb4 -u root -p -h 127.0.0.1 -P 3306 ai
 
 Resultados esperados: `tables_18` = 18/PASS, `fk_25` = 25/PASS, `levels_3` = 3/PASS, `weeks_24` = 24/PASS, `lessons_week_1_3` = 3/PASS y `challenges_week_1_3` = 3/PASS.
 
-El resultado de 18 tablas presupone el flujo actual con Prisma (`Backend\npm.cmd run db:bootstrap`), que añade la tabla `character_labs`. El archivo `schema.sql` queda como referencia del hito 2 y no reemplaza las migraciones de Prisma.
+El resultado de 18 tablas presupone el flujo actual con Prisma al iniciar el backend (`cd Backend` y `npm.cmd run start`), que añade la tabla `character_labs`. El archivo `schema.sql` queda como referencia del hito 2 y no reemplaza las migraciones de Prisma.
 
 Para evidencias adicionales:
 

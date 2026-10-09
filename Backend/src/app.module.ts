@@ -7,5 +7,6 @@ import { ProjectsModule } from './projects/projects.module';
 import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
 import { LearningModule } from './learning/learning.module';
-@Module({ imports: [ConfigModule.forRoot({ isGlobal: true, validate: validateEnvironment }), PrismaModule, HealthModule, RepositoriesModule, ProjectsModule, AuthModule, LearningModule] })
+import { CatalogBootstrapService } from './bootstrap/catalog-bootstrap.service';
+@Module({ imports: [ConfigModule.forRoot({ isGlobal: true, validate: validateEnvironment }), PrismaModule, HealthModule, RepositoriesModule, ProjectsModule, AuthModule, LearningModule], providers: [CatalogBootstrapService] })
 export class AppModule {}
