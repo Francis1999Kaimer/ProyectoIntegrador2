@@ -106,7 +106,7 @@ function fresh(){
   current.lesson={id:uid(60),title:'Leccion piloto',summary:'Contenido publicado',content:{sections:Array.from({length:5},(_,i)=>({title:'Seccion '+(i+1),text:i===0?'<img src=x onerror=alert(1)>':'Texto de lectura'}))}}
   current.projects=[{id:uid(40),owner_id:uid(1),classroom_id:null,title:'Proyecto persistido',project_type:'image_classification',status:'draft',updated_at:'2026-10-09T10:00:00Z'}]
 }
-async function mount(path='/'){
+async function mount(path='/login'){
   window.history.replaceState(null,'',path);document.body.innerHTML='<div id="root"></div>'
   root=createRoot(document.getElementById('root'))
   await act(async()=>{root.render(React.createElement(BrowserRouter,null,React.createElement(AuthProvider,null,React.createElement(Gate))));await Promise.resolve()})
@@ -125,6 +125,9 @@ test('unauthenticated deep link redirects to login; incorrect password shows err
   await mount('/proyectos/'+uid(40));assert.equal(window.location.pathname,'/login')
   await login('student','incorrect');assert.match(text(),/Usuario o contraseña incorrectos/);assert.equal(field('Contraseña').value,'')
   await login();assert.equal(window.location.pathname,'/proyectos/'+uid(40));assert.match(text(),/Proyecto persistido/)
+}))
+test('public landing presents the product and sends visitors to login',()=>fixture(async()=>{
+  await mount('/');assert.match(text(),/Entrena un modelo que/);await click('Iniciar sesión');assert.equal(window.location.pathname,'/login')
 }))
 test('project creation uses API, persists metadata, survives session restore and sends no caller owner id',()=>fixture(async()=>{
   await mount();await login();await click('Crear proyecto');await fill('Nombre del proyecto','Proyecto nuevo DOM');await click('Crear y cargar dataset')
@@ -172,7 +175,7 @@ test('forced password change blocks business pages, wrong current password prese
   await fill('Contraseña actual','incorrect');await fill('Nueva contraseña','new-test-only-password-123');await fill('Confirmar nueva contraseña','new-test-only-password-123');await submit('Contraseña actual')
   assert.equal(window.location.pathname,'/cambiar-clave');assert.ok(getToken());assert.match(text(),/contraseña actual/)
   await fill('Contraseña actual',PASSWORD);await fill('Nueva contraseña','new-test-only-password-123');await fill('Confirmar nueva contraseña','new-test-only-password-123');await submit('Contraseña actual')
-  assert.equal(window.location.pathname,'/login');assert.equal(getToken(),null);await login('student','new-test-only-password-123');assert.equal(window.location.pathname,'/');assert.match(text(),/Hola, Test student/)
+  assert.equal(window.location.pathname,'/login');assert.equal(getToken(),null);await login('student','new-test-only-password-123');assert.equal(window.location.pathname,'/inicio');assert.match(text(),/Hola, Test student/)
 }))
 test('admin creates pending student, registers consent and activates through connected forms',()=>fixture(async()=>{
   await mount();await login('admin');await click('Alumnos');await click('Registrar alumno');await fill('Usuario','new_student');await fill('Nombre visible','Alumno DOM');await fill('Contraseña inicial',PASSWORD);await submit('Usuario')

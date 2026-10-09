@@ -6,8 +6,8 @@ import { useProjectStore } from '../store/project'
 export function Header() {
   const { user, logout } = useAuth()
   return <header className="app-header">
-    <Link to="/" className="brand"><span className="brand-mark"><BrainCircuit size={21}/></span><span>AI Blocks <strong>Studio</strong></span></Link>
-    <nav className="main-nav"><NavLink to="/" end><Home size={17}/>Inicio</NavLink><NavLink to="/proyectos"><FolderOpen size={17}/>Proyectos</NavLink><NavLink to="/salones"><Users size={17}/>Salones</NavLink>{user?.role!=='student'&&<NavLink to="/alumnos">Alumnos</NavLink>}{user?.role==='admin'&&<NavLink to="/docentes">Docentes</NavLink>}</nav>
+    <Link to="/inicio" className="brand"><span className="brand-mark"><BrainCircuit size={21}/></span><span>AI Blocks <strong>Studio</strong></span></Link>
+    <nav className="main-nav"><NavLink to="/inicio" end><Home size={17}/>Inicio</NavLink><NavLink to="/proyectos"><FolderOpen size={17}/>Proyectos</NavLink><NavLink to="/salones"><Users size={17}/>Salones</NavLink>{user?.role!=='student'&&<NavLink to="/alumnos">Alumnos</NavLink>}{user?.role==='admin'&&<NavLink to="/docentes">Docentes</NavLink>}</nav>
     <div className="header-actions session-actions"><span className="session-user">{user?.display_name}<small>{user?.role === 'teacher' ? 'Docente' : user?.role === 'admin' ? 'Administrador' : 'Alumno'}</small></span><Link to="/cambiar-clave" className="text-action">Cambiar clave</Link><button className="secondary" onClick={logout}><LogOut size={16}/>Salir</button></div>
   </header>
 }

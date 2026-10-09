@@ -30,15 +30,15 @@ export function Gate() {
   const {user,ready,error,refresh,logout}=useAuth(), location=useLocation()
   if(!ready) return <main className="auth-page"><ApiMessage loading/></main>
   if(error&&!user) return <main className="auth-page"><section className="panel auth-card"><ApiMessage error={error} retry={()=>void refresh()}/><button className="secondary" onClick={logout}>Volver al login</button></section></main>
-  if(!user) return location.pathname==='/login'?<LoginPage/>:<Navigate to="/login" replace state={{from:location.pathname+location.search}}/>
+  if(!user) { if(location.pathname==='/') return <RoutedExperience/>; return location.pathname==='/login'?<LoginPage/>:<Navigate to="/login" replace state={{from:location.pathname+location.search}}/> }
   if(location.pathname==='/login') {
     const from=location.state?.from
-    const target=typeof from==='string'&&from.startsWith('/')&&!from.startsWith('//')&&from.split('?')[0]!=='/login'&&from.split('?')[0]!=='/cambiar-clave'?from:'/'
+    const target=typeof from==='string'&&from.startsWith('/')&&!from.startsWith('//')&&from.split('?')[0]!=='/login'&&from.split('?')[0]!=='/cambiar-clave'&&from!=='/'?from:'/inicio'
     return <Navigate to={target} replace/>
   }
   if(user.must_change_password&&location.pathname!=='/cambiar-clave') return <Navigate to="/cambiar-clave" replace/>
   if(location.pathname==='/cambiar-clave') return <PasswordPage/>
-  if(location.pathname==='/alumnos'&&user.role==='student') return <Navigate to="/" replace/>
-  if(location.pathname==='/docentes'&&user.role!=='admin') return <Navigate to="/" replace/>
+  if(location.pathname==='/alumnos'&&user.role==='student') return <Navigate to="/inicio" replace/>
+  if(location.pathname==='/docentes'&&user.role!=='admin') return <Navigate to="/inicio" replace/>
   return <RoutedExperience key={user.id+':'+user.role}/>
 }
