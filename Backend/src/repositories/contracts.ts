@@ -34,6 +34,8 @@ export interface SimulationRun {
 }
 export interface UserRepository {
   findById(id: string): Promise<UserSummary | null>;
+  findCredentialsById(id: string): Promise<AuthenticationUser | null>;
+  updatePassword(id: string, previousHash: string, newHash: string): Promise<boolean>;
   findForAuthentication(username: string): Promise<AuthenticationUser | null>;
 }
 export interface ProjectRepository {

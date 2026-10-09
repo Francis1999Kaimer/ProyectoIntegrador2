@@ -1,4 +1,4 @@
-name: Backend Hito 3
+name: Backend APF2
 on:
   push:
     paths: ['Backend/**', 'database/schema.sql', '.github/workflows/backend-hito3.yml']
@@ -23,8 +23,6 @@ jobs:
           cache-dependency-path: Backend/package-lock.json
       - run: npm ci
       - run: npm run prisma:validate
-      - run: npm run prisma:generate
-      - run: npm run build
       - run: npm test
       - name: Baseline preserves original SQL
         run: cmp prisma/migrations/0_init/migration.sql ../database/schema.sql

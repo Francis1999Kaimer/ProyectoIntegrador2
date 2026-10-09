@@ -18,6 +18,16 @@ export class PrismaUserRepository implements UserRepository {
   findById(id: string) {
     return this.db.users.findUnique({ where: { id }, select: userSelect });
   }
+  findCredentialsById(id: string) {
+    return this.db.users.findUnique({ where: { id }, select: { ...userSelect, password_hash: true } });
+  }
+  async updatePassword(id: string, previousHash: string, newHash: string) {
+    const result = await this.db.users.updateMany({
+      where: { id, password_hash: previousHash, status: 'active' },
+      data: { password_hash: newHash, must_change_password: false, updated_at: new Date() }
+    });
+    return result.count === 1;
+  }
   // Internal credential lookup only; never return this result through a public API.
   findForAuthentication(username: string) {
     return this.db.users.findUnique({ where: { username }, select: { ...userSelect, password_hash: true } });

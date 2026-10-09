@@ -82,6 +82,7 @@ cd C:\Users\franc\Escritorio\ProyectoIntegrador2
 git pull origin main
 cd Backend
 npm ci
+npm run prisma:generate
 npm run build
 npm test
 npm run test:repositories:db
@@ -112,5 +113,12 @@ Las pruebas de escrituras reales y permisos se realizarán en hitos posteriores.
 Hito 3 validado por el usuario en MySQL 8.0.39 el 9 de octubre de 2026:
 introspección, baseline 0_init aplicado, estado actualizado, inicio NestJS y /health ok/up.
 La validación de estos repositorios contra ese servidor y MariaDB queda pendiente.
-Las 12 vulnerabilidades reportadas por npm ci en el equipo del usuario siguen pendientes
-de análisis; este hito no cambia dependencias ni afirma resolverlas.
+En hito 4 se reportaron 12 alertas npm. El estado actualizado de dependencias y auditoría
+se documenta en AUTENTICACION.md para hito 5.
+
+## Extensión de autenticación (hito 5)
+
+UserRepository incorpora findCredentialsById para verificación interna de sesiones y
+updatePassword con comparación del hash anterior y estado activo en una actualización
+atómica. Solo las consultas explícitas de credenciales incluyen el hash; la API usa una
+proyección pública. Con AuthModule, el contexto de smoke requiere JWT_SECRET válido en .env.

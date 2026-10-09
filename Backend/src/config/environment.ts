@@ -14,5 +14,7 @@ export function validateEnvironment(env: Record<string, unknown>) {
     if (!['http:', 'https:'].includes(parsedOrigin.protocol) || parsedOrigin.origin !== origin) throw new Error('Usa orígenes HTTP completos, sin ruta, en CORS_ORIGINS.');
   }
   if (!['development','test','production'].includes(String(env.NODE_ENV ?? 'development'))) throw new Error('NODE_ENV inválido.');
-  return { ...env, PORT: port, HOST: String(env.HOST ?? '127.0.0.1'), CORS_ORIGINS: origins };
+  const secret = String(env.JWT_SECRET ?? '');
+  if (secret.length < 32 || secret.includes('REPLACE_ME')) throw new Error('JWT_SECRET requiere un secreto propio de al menos 32 caracteres.');
+  return { ...env, JWT_SECRET: secret, PORT: port, HOST: String(env.HOST ?? '127.0.0.1'), CORS_ORIGINS: origins };
 }
