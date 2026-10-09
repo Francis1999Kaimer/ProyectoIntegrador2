@@ -18,7 +18,7 @@ Nunca se devuelve password_hash desde la API.
 | GET /auth/access/student | student o admin | Prueba de permiso APF2 |
 
 Las rutas access son comprobaciones de autorización para la sustentación.
-Los endpoints de proyectos/salones y la pantalla de login se implementarán en hitos 6–7.
+Los endpoints de proyectos/salones se documentan en APIS_HITO6.md; la pantalla de login pertenece al hito 7.
 No hay registro público ni se permite elegir rol mediante el cuerpo del login.
 
 JWT HS256: duración 15 minutos, issuer aiblocks-api, audience aiblocks-web.
@@ -81,7 +81,7 @@ El script se limita a NODE_ENV=development y servidores localhost. Usa transacci
 si una cuenta existente no coincide, falla sin sobrescribirla. Puede repetirse con
 la misma contraseña; no crea duplicados ni resetea credenciales.
 Las cuentas son ficticias, sin emails ni datos de menores reales; no representan matrícula
-o consentimiento. Altas reales y reglas de consentimiento se implementarán con hito 6.
+o consentimiento. Altas pendientes, registro/revocación de consentimiento y matrículas se documentan en APIS_HITO6.md.
 
 En otra ventana PowerShell:
 
@@ -129,3 +129,8 @@ en la cadena de Prisma y dependencias @prisma/config, deepmerge-ts y effect.
 npm audit --omit=dev también reporta esas cuatro en el árbol instalado; no se afirma
 que producción esté libre de alertas. La evaluación y corrección de esa cadena siguen
 pendientes para hito 9; no se fuerza downgrade ni migración mayor de Prisma.
+
+
+Hito 5 validado en el PC el 9 de octubre de 2026: 19 tests, tres roles con login/perfil y
+matriz de permisos, rechazo de JWT/credenciales inválidos y health ok/up. La prueba de
+hito 6 amplía esta evidencia con cambio de contraseña persistido y permisos de negocio.

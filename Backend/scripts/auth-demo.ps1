@@ -1,4 +1,4 @@
-param([ValidateSet("seed", "test")][string]$Action)
+param([ValidateSet("seed", "test", "apis")][string]$Action)
 $ErrorActionPreference = "Stop"
 $securePassword = Read-Host "Clave para cuentas demo (minimo 12 caracteres)" -AsSecureString
 $pointer = [IntPtr]::Zero
@@ -8,6 +8,8 @@ try {
   $env:DEMO_PASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($pointer)
   if ($Action -eq "seed") {
     node scripts/seed-demo-users.cjs
+  } elseif ($Action -eq "apis") {
+    node scripts/apis-smoke.cjs
   } else {
     node scripts/auth-smoke.cjs
   }
