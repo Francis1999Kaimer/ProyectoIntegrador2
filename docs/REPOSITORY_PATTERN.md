@@ -122,3 +122,13 @@ UserRepository incorpora findCredentialsById para verificación interna de sesio
 updatePassword con comparación del hash anterior y estado activo en una actualización
 atómica. Solo las consultas explícitas de credenciales incluyen el hash; la API usa una
 proyección pública. Con AuthModule, el contexto de smoke requiere JWT_SECRET válido en .env.
+
+
+## Operaciones funcionales (hito 6)
+
+LearningRepository agrupa operaciones coordinadas entre alumnos, consentimiento, matrícula,
+catálogo, proyectos, workspace/versiones y progreso. Se mantienen los seis repositorios
+anteriores; el nuevo contrato no importa Prisma/NestJS. PrismaLearningRepository implementa
+transacciones para consentimiento/estado, matrículas, CAS/snapshots y progreso monotónico.
+LearningService aplica autorización por recurso y calcula datos derivados; el controlador
+solo expone DTO validados y el actor de JWT. Ver APIS_HITO6.md para contrato y pruebas.

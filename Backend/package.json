@@ -20,7 +20,8 @@
     "prebuild": "npm run prisma:generate",
     "pretest": "npm run build",
     "auth:seed-demo": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/auth-demo.ps1 -Action seed",
-    "auth:test-demo": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/auth-demo.ps1 -Action test"
+    "auth:test-demo": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/auth-demo.ps1 -Action test",
+    "test:apis:db": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/auth-demo.ps1 -Action apis"
   },
   "dependencies": {
     "@nestjs/common": "11.2.7",

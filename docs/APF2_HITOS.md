@@ -8,8 +8,8 @@ El producto busca un primer despliegue verificable, no la totalidad del currícu
 | 2 | Modelo físico de BD, SQL, seed, relaciones e índices | Pruebas locales superadas en MySQL 8.0.39; MariaDB pendiente |
 | 3 | Backend NestJS, Prisma, configuración y health check | Pruebas locales superadas: baseline 0_init, estado actualizado y health ok/up |
 | 4 | Repository Pattern y diagrama de clases | Pruebas locales superadas: 11 tests, seis repositorios en MySQL y health ok/up |
-| 5 | Login, JWT, roles y permisos | Implementado; pendiente de prueba local de autenticación |
-| 6 | APIs reales: alumnos, salones, proyectos, workspaces, progreso | Pendiente |
+| 5 | Login, JWT, roles y permisos | Pruebas locales superadas: 19 tests, tres roles, JWT rechazados y health ok/up |
+| 6 | APIs reales: alumnos, salones, proyectos, workspaces, progreso | Implementado; pendiente de prueba local de escrituras y permisos |
 | 7 | Conectar frontend actual con backend y reemplazar mocks esenciales | Pendiente |
 | 8 | Persistir editor React Flow y resultados de entrenamiento pedagógico | Pendiente |
 | 9 | Validaciones, controles de seguridad y auditoría | Pendiente |
@@ -72,3 +72,17 @@ build, 11 tests, seis repositorios consultando MySQL, NestJS y health ok/up.
 Auditoría de dependencias en hito 5: actualizaciones compatibles de NestJS reducen
 12 alertas a 4 en la cadena de Prisma; npm audit --omit=dev también reporta esas cuatro.
 Las alertas se mantienen pendientes de evaluación en hito 9.
+
+
+## Hito 6
+
+APIs protegidas para alumnos (alta pendiente, estado y consentimiento), salones y matrículas,
+proyectos por propietario, workspaces con versión/snapshot atómicos, lecciones por curso/nivel
+y progreso calculado y monotónico. LearningRepository amplía las operaciones transaccionales
+sin introducir Prisma en servicio/controlador/contrato. No cambia SQL ni frontend.
+Contrato y prueba HTTP con escrituras sintéticas y verificación independiente de MySQL en
+[APIS_HITO6.md](APIS_HITO6.md). Pendiente de aceptación local y MariaDB/Plesk.
+
+Aceptación del hito 5: evidencia del usuario del 9 de octubre de 2026: 19 tests pasan,
+cuentas demo disponibles, tres logins/perfiles/permisos, credenciales/tokens inválidos 401
+y GET /health ok/up. Reseteo de las claves demo confirmado en MySQL local; no se publican.
