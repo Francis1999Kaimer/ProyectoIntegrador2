@@ -1,37 +1,45 @@
 # Frontend — AI Blocks Studio
 
-Prototipo UX/UI existente del entorno educativo visual por bloques. **Se conserva durante APF2** y se integrará progresivamente con el backend, sin reescribirlo.
+Frontend React 19 + TypeScript + Vite de AI Blocks Studio. Mantiene la interfaz educativa existente y, desde el hito 7, se conecta a la API NestJS para autenticación, proyectos, salones, alumnos, lecciones y progreso.
 
-## Stack existente
+## Requisitos
 
-- React 19 + TypeScript + Vite.
-- React Router, React Flow (`@xyflow/react`), Zustand y Lucide React.
-- Capa de estilo inspirada en IBM Carbon y ajustes responsive.
+- Node.js 22.22 o superior.
+- Backend de este repositorio iniciado en `http://127.0.0.1:3000`.
 
 ## Ejecutar localmente
 
-Requiere Node.js 22.22 o superior.
-
 ```powershell
-cd C:\Users\franc\Escritorio\ProyectoIntegrador2\Frontend
-npm install
+cd C:\Users\franc\Escritorio\ProyectoIntegrador2
+git pull origin main
+cd Frontend
+npm ci
+if (!(Test-Path .env)) { Copy-Item .env.example .env }
+npm test
+npm run build
 npm run dev
 ```
 
-Abrir `http://localhost:5173`.
+Abre `http://127.0.0.1:5173`. Consulta el procedimiento completo en [docs/FRONTEND_HITO7.md](../docs/FRONTEND_HITO7.md).
 
-## Estado real
+## Configuración
 
-El frontend continúa usando datos mock. Las pantallas existentes incluyen Inicio, Mis proyectos, Crear proyecto, Dataset, Preparación, Modelo, Editor, Entrenamiento, Evaluación y Predicción.
+`.env` solo puede contener el origen público de la API:
 
-**Todavía no hay API ejecutable, autenticación real ni persistencia en MySQL**. Esto llegará con los hitos APF2 3 al 8.
-
-## Integración prevista
-
-```text
-React/Vite → NestJS REST API → Service → Repository/Prisma → MySQL local o MariaDB/Plesk
+```dotenv
+VITE_API_URL=http://127.0.0.1:3000
 ```
 
-Se incorporará `VITE_API_URL` en `Frontend/.env` privado y un cliente API tipado; no se usarán credenciales SQL ni secretos JWT en el navegador.
+No agregues `DATABASE_URL`, contraseñas, tokens o `JWT_SECRET`: cualquier variable `VITE_*` queda expuesta en el navegador.
 
-Ver `docs/architecture.md` y `docs/APF2_HITOS.md`.
+## Estado de las pantallas
+
+- Login, sesión, roles y cambio de clave: conectados.
+- Proyectos: consulta y creación conectadas.
+- Salones, matrícula, lecciones y progreso: conectados.
+- Administración de alumnos, consentimiento y activación: conectados.
+- Dataset, preparación, modelo, editor, entrenamiento, evaluación y predicción: conservan parte de la experiencia educativa original. La persistencia del editor y los resultados de entrenamiento se incorporan en el hito 8.
+
+## Pruebas
+
+`npm test` verifica el cliente HTTP y los flujos React con una API simulada: login, permisos, formularios, rutas protegidas, manejo de 401, progreso y escape del contenido de lecciones. `npm run build` comprueba tipos y genera el bundle de producción.

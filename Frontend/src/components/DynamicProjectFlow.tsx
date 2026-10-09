@@ -1,3 +1,4 @@
+import { Header, ProjectStepper, workflow } from './AppShell'
 import { ArrowRight, BarChart3, BrainCircuit, Camera, CheckCircle2, CircleHelp, Database, FileText, FolderOpen, HardDrive, Image as ImageIcon, Link2, Network, Save, SlidersHorizontal, Sparkles, Split, Target, TrendingUp, UploadCloud, WandSparkles } from 'lucide-react'
 import { Link, useNavigate } from 'react-router'
 import { useState, type ReactNode } from 'react'
@@ -57,9 +58,8 @@ const flowPresets: Record<string, FlowPreset> = {
   },
 }
 
-function FlowShell({ children, active }: { children: ReactNode; active: number }) {
-  const steps = [['/dataset','Datos'],['/preparacion','Preparación'],['/modelo','Modelo'],['/editor','Pipeline'],['/entrenamiento','Entrenar'],['/evaluacion','Evaluar'],['/prediccion','Probar']]
-  return <><header className="app-header"><Link to="/" className="brand"><span className="brand-mark"><BrainCircuit size={21}/></span><span>AI Blocks <strong>Studio</strong></span></Link><nav className="main-nav"><Link to="/">Inicio</Link><Link to="/proyectos"><FolderOpen size={17}/>Mis proyectos</Link></nav><div className="avatar">FA</div></header><div className="stepper">{steps.map(([path,label],i)=><Link key={path} to={path} className={i===active?'active':''}><span>{i+1}</span>{label}</Link>)}</div><main className="page dynamic-flow-page">{children}</main></>
+function FlowShell({ children }: { children: ReactNode; active: number }) {
+  return <><Header/><ProjectStepper/><main className="page dynamic-flow-page">{children}</main></>
 }
 
 function getPreset(type: string) { return flowPresets[type] ?? flowPresets['Clasificación de imágenes'] }
@@ -70,7 +70,7 @@ export function DynamicDatasetPage() {
     <div className="source-tabs dynamic-source-tabs">{preset.sourceTabs.map(([label,Icon],i)=><button key={label} className={source===i?'active':''} onClick={()=>setSource(i)}><Icon size={18}/>{label}</button>)}</div>
     <div className="dynamic-dataset-grid"><section className="panel upload-panel dynamic-upload"><UploadCloud size={38}/><span className="eyebrow">{preset.sourceTabs[source][0]}</span><h2>{preset.uploadTitle}</h2><p>{preset.uploadText}</p><button className="primary">Seleccionar datos</button><div className="dataset-preview-chips">{preset.previewItems.map(item=><span key={item}>{item}</span>)}</div></section>
     <aside className="panel dynamic-data-summary"><div className="status"><CheckCircle2 size={17}/>Ejemplo listo para explorar</div><h3>Resumen esperado</h3><div className="stats">{preset.stats.map(([value,label])=><div key={label}><strong>{value}</strong><small>{label}</small></div>)}</div><div className="data-check"><Target size={18}/><div><strong>El sistema validará tu dataset</strong><p>Tipos, balance, faltantes y compatibilidad con el problema seleccionado.</p></div></div></aside></div>
-    <div className="actions end"><button className="primary" onClick={()=>navigate('/preparacion')}>Preparar estos datos <ArrowRight size={17}/></button></div></FlowShell>
+    <div className="actions end"><button className="primary" onClick={()=>navigate(workflow('/preparacion',useProjectStore.getState().id))}>Preparar estos datos <ArrowRight size={17}/></button></div></FlowShell>
 }
 
 export function DynamicPreparationPage() {
@@ -79,7 +79,7 @@ export function DynamicPreparationPage() {
     <div className="dynamic-prep-pipeline">{preset.preparation.map(([title],i)=><div key={title}><span>{i+1}</span><strong>{title}</strong>{i<preset.preparation.length-1&&<ArrowRight size={17}/>}</div>)}</div>
     <div className="dynamic-prep-grid">{preset.preparation.map(([title,value,text],i)=><section className="panel dynamic-prep-card" key={title}><div><span className="prep-number">0{i+1}</span><CheckCircle2 size={18}/></div><h3>{title}</h3><strong>{value}</strong><p>{text}</p><button className="text-action">Configurar →</button></section>)}</div>
     <div className="friendly-note"><WandSparkles size={20}/><div><strong>Pipeline adaptado al problema</strong><p>No mostramos bloques irrelevantes: el estudiante ve primero las transformaciones que sí tienen sentido para <b>{type.toLowerCase()}</b>.</p></div></div>
-    <div className="actions end"><button className="secondary"><Save size={17}/>Guardar</button><button className="primary" onClick={()=>navigate('/modelo')}>Elegir modelo <ArrowRight size={17}/></button></div></FlowShell>
+    <div className="actions end"><button className="secondary" disabled title="Esta configuración es un ejemplo educativo"><Save size={17}/>Guardar</button><button className="primary" onClick={()=>navigate(workflow('/modelo',useProjectStore.getState().id))}>Elegir modelo <ArrowRight size={17}/></button></div></FlowShell>
 }
 
 export function DynamicModelPage() {
@@ -87,5 +87,5 @@ export function DynamicModelPage() {
   const description=preset.models.find(([model])=>model===selected)?.[1] ?? preset.modelDescription
   return <FlowShell active={2}><div className="page-title"><div><span className="eyebrow">PASO 3 · {type.toUpperCase()}</span><h1>Selecciona un modelo apropiado</h1><p>Mostramos alternativas compatibles con el tipo de problema, ordenadas desde lo más explicable hasta lo más potente.</p></div></div>
     <div className="dynamic-model-layout"><section className="dynamic-model-list">{preset.models.map(([model,text],i)=><button key={model} onClick={()=>setSelected(model)} className={selected===model?'dynamic-model-card selected':'dynamic-model-card'}><span className="model-rank">0{i+1}</span><span className="model-symbol">{i===0?'◎':i===1?'◈':'⬡'}</span><span><strong>{model}</strong><small>{text}</small></span>{model===preset.recommendedModel&&<em>Recomendado</em>}</button>)}</section>
-    <aside className="panel dynamic-model-inspector"><span className="eyebrow">MODELO SELECCIONADO</span><div className="model-big-icon"><Network size={30}/></div><h2>{selected}</h2><p>{description}</p><div className="dynamic-model-config">{preset.config.map(([label,value])=><div key={label}><small>{label}</small><strong>{value}</strong></div>)}</div><div className="friendly-note compact"><Sparkles size={18}/><div><strong>Explicación para el estudiante</strong><p>Antes de entrenar podrás ver qué hace este modelo, qué parámetros importan y qué resultados esperar.</p></div></div><button className="primary full" onClick={()=>navigate('/editor')}>Construir pipeline <ArrowRight size={17}/></button></aside></div></FlowShell>
+    <aside className="panel dynamic-model-inspector"><span className="eyebrow">MODELO SELECCIONADO</span><div className="model-big-icon"><Network size={30}/></div><h2>{selected}</h2><p>{description}</p><div className="dynamic-model-config">{preset.config.map(([label,value])=><div key={label}><small>{label}</small><strong>{value}</strong></div>)}</div><div className="friendly-note compact"><Sparkles size={18}/><div><strong>Explicación para el estudiante</strong><p>Antes de entrenar podrás ver qué hace este modelo, qué parámetros importan y qué resultados esperar.</p></div></div><button className="primary full" onClick={()=>navigate(workflow('/editor',useProjectStore.getState().id))}>Construir pipeline <ArrowRight size={17}/></button></aside></div></FlowShell>
 }

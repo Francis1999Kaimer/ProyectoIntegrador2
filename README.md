@@ -4,11 +4,12 @@ Plataforma web educativa para aprender inteligencia artificial mediante proyecto
 
 ## Estado actual
 
-- **Frontend existente:** React, TypeScript, Vite, React Flow y Zustand, con pantallas navegables y datos mock.
-- **Backend:** aún pendiente de implementar. Se desarrollará en NestJS como parte de APF2.
-- **Base de datos:** arquitectura definida para MySQL local (`aiblockstudio`) y MariaDB en Plesk; esquema SQL e integración pendientes del hito 2.
+- **Frontend:** React, TypeScript, Vite y React Flow. Login, roles, proyectos, salones, alumnos, lecciones y progreso consumen la API NestJS.
+- **Backend:** NestJS + Prisma, con health check y APIs protegidas validadas en MySQL local.
+- **Base de datos:** MySQL local `aiblockstudio` validado para los hitos 2 a 6; MariaDB/Plesk continúa pendiente.
 - **Despliegue:** previsto en Plesk; todavía no desplegado.
-- **Hito 1/12:** alineación de arquitectura y documentación. Ver `docs/APF2_HITOS.md`.
+- **Hitos 1 a 6:** validados localmente. **Hito 7:** integración frontend implementada; queda la demostración visual local con la API.
+
 
 ## Arquitectura objetivo APF2
 

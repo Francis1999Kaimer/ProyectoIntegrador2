@@ -9,8 +9,8 @@ El producto busca un primer despliegue verificable, no la totalidad del currícu
 | 3 | Backend NestJS, Prisma, configuración y health check | Pruebas locales superadas: baseline 0_init, estado actualizado y health ok/up |
 | 4 | Repository Pattern y diagrama de clases | Pruebas locales superadas: 11 tests, seis repositorios en MySQL y health ok/up |
 | 5 | Login, JWT, roles y permisos | Pruebas locales superadas: 19 tests, tres roles, JWT rechazados y health ok/up |
-| 6 | APIs reales: alumnos, salones, proyectos, workspaces, progreso | Implementado; pendiente de prueba local de escrituras y permisos |
-| 7 | Conectar frontend actual con backend y reemplazar mocks esenciales | Pendiente |
+| 6 | APIs reales: alumnos, salones, proyectos, workspaces, progreso | Pruebas locales superadas con MySQL: escrituras, permisos, concurrencia y revocación |
+| 7 | Conectar frontend actual con backend y reemplazar mocks esenciales | Implementado; pruebas UI/compilación superadas, pendiente de demostración local con la API |
 | 8 | Persistir editor React Flow y resultados de entrenamiento pedagógico | Pendiente |
 | 9 | Validaciones, controles de seguridad y auditoría | Pendiente |
 | 10 | Documentación APF2: BD, replicación, cifrado, pruebas y despliegue | Pendiente |
@@ -81,8 +81,26 @@ proyectos por propietario, workspaces con versión/snapshot atómicos, lecciones
 y progreso calculado y monotónico. LearningRepository amplía las operaciones transaccionales
 sin introducir Prisma en servicio/controlador/contrato. No cambia SQL ni frontend.
 Contrato y prueba HTTP con escrituras sintéticas y verificación independiente de MySQL en
-[APIS_HITO6.md](APIS_HITO6.md). Pendiente de aceptación local y MariaDB/Plesk.
+[APIS_HITO6.md](APIS_HITO6.md). Pruebas locales MySQL superadas el 9 de octubre de 2026; MariaDB/Plesk continúa pendiente.
 
 Aceptación del hito 5: evidencia del usuario del 9 de octubre de 2026: 19 tests pasan,
 cuentas demo disponibles, tres logins/perfiles/permisos, credenciales/tokens inválidos 401
 y GET /health ok/up. Reseteo de las claves demo confirmado en MySQL local; no se publican.
+
+
+## Hito 7
+
+El frontend React conserva el diseño y consume la API NestJS mediante un cliente HTTP tipado.
+Incluye sesión en `sessionStorage`, rutas protegidas, redirección por rol/cambio de clave,
+proyectos, salones, matrícula, lecciones, progreso y administración de alumnos. Los mocks
+esenciales fueron reemplazados en esos recorridos; dataset, preparación, modelo, editor y
+entrenamiento siguen declarados como experiencia educativa hasta el hito 8.
+
+Las pruebas automatizadas verifican el cliente y los flujos React, incluidas rutas profundas,
+validación, roles, 401, cambio de contraseña, contenido escapado y solicitudes concurrentes.
+El bundle también se compila. Para la demostración real contra la API y MySQL local, seguir
+[FRONTEND_HITO7.md](FRONTEND_HITO7.md), empezando por `git pull origin main`.
+
+Aceptación del hito 6: evidencia del usuario del 9 de octubre de 2026 confirma el script
+`apis-smoke.cjs` contra MySQL real: alumno/consentimiento/activación, salón/matrícula,
+proyecto y snapshots concurrentes, progreso y revocación; GET `/health` devolvió `ok/up`.
