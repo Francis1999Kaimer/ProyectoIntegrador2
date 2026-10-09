@@ -1,0 +1,1341 @@
+[
+  {
+    "name": "levels",
+    "columns": [
+      {
+        "name": "id",
+        "type": "smallint unsigned",
+        "nullable": false
+      },
+      {
+        "name": "slug",
+        "type": "varchar(32)",
+        "nullable": false
+      },
+      {
+        "name": "name",
+        "type": "varchar(80)",
+        "nullable": false
+      },
+      {
+        "name": "min_age",
+        "type": "tinyint unsigned",
+        "nullable": false
+      },
+      {
+        "name": "max_age",
+        "type": "tinyint unsigned",
+        "nullable": true
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": false
+      }
+    ],
+    "checks": [
+      "chk_levels_age"
+    ],
+    "fks": [],
+    "indexes": [
+      {
+        "name": "PRIMARY",
+        "columns": "id",
+        "unique": true
+      },
+      {
+        "name": "uq_levels_slug",
+        "columns": "slug",
+        "unique": true
+      }
+    ]
+  },
+  {
+    "name": "users",
+    "columns": [
+      {
+        "name": "id",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "username",
+        "type": "varchar(64)",
+        "nullable": false
+      },
+      {
+        "name": "email",
+        "type": "varchar(191)",
+        "nullable": true
+      },
+      {
+        "name": "password_hash",
+        "type": "varchar(255)",
+        "nullable": false
+      },
+      {
+        "name": "role",
+        "type": "varchar(16)",
+        "nullable": false
+      },
+      {
+        "name": "status",
+        "type": "varchar(16)",
+        "nullable": false
+      },
+      {
+        "name": "display_name",
+        "type": "varchar(120)",
+        "nullable": false
+      },
+      {
+        "name": "must_change_password",
+        "type": "tinyint(1)",
+        "nullable": false
+      },
+      {
+        "name": "last_login_at",
+        "type": "datetime",
+        "nullable": true
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": false
+      },
+      {
+        "name": "updated_at",
+        "type": "datetime",
+        "nullable": false
+      }
+    ],
+    "checks": [
+      "chk_users_role",
+      "chk_users_status"
+    ],
+    "fks": [],
+    "indexes": [
+      {
+        "name": "PRIMARY",
+        "columns": "id",
+        "unique": true
+      },
+      {
+        "name": "uq_users_username",
+        "columns": "username",
+        "unique": true
+      },
+      {
+        "name": "uq_users_email",
+        "columns": "email",
+        "unique": true
+      },
+      {
+        "name": "ix_users_role_status",
+        "columns": "role,status",
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "courses",
+    "columns": [
+      {
+        "name": "id",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "slug",
+        "type": "varchar(80)",
+        "nullable": false
+      },
+      {
+        "name": "title",
+        "type": "varchar(180)",
+        "nullable": false
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "nullable": true
+      },
+      {
+        "name": "total_weeks",
+        "type": "tinyint unsigned",
+        "nullable": false
+      },
+      {
+        "name": "status",
+        "type": "varchar(16)",
+        "nullable": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": false
+      },
+      {
+        "name": "updated_at",
+        "type": "datetime",
+        "nullable": false
+      }
+    ],
+    "checks": [
+      "chk_courses_weeks",
+      "chk_courses_status"
+    ],
+    "fks": [],
+    "indexes": [
+      {
+        "name": "PRIMARY",
+        "columns": "id",
+        "unique": true
+      },
+      {
+        "name": "uq_courses_slug",
+        "columns": "slug",
+        "unique": true
+      }
+    ]
+  },
+  {
+    "name": "course_weeks",
+    "columns": [
+      {
+        "name": "id",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "course_id",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "week_number",
+        "type": "tinyint unsigned",
+        "nullable": false
+      },
+      {
+        "name": "phase",
+        "type": "tinyint unsigned",
+        "nullable": false
+      },
+      {
+        "name": "title",
+        "type": "varchar(160)",
+        "nullable": false
+      },
+      {
+        "name": "objective",
+        "type": "varchar(300)",
+        "nullable": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": false
+      }
+    ],
+    "checks": [
+      "chk_course_weeks_number",
+      "chk_course_weeks_phase"
+    ],
+    "fks": [
+      {
+        "name": "fk_course_weeks_course",
+        "column": "course_id",
+        "target": "courses",
+        "ref": "id",
+        "delete": "CASCADE"
+      }
+    ],
+    "indexes": [
+      {
+        "name": "PRIMARY",
+        "columns": "id",
+        "unique": true
+      },
+      {
+        "name": "uq_course_weeks_number",
+        "columns": "course_id,week_number",
+        "unique": true
+      },
+      {
+        "name": "ix_course_weeks_phase",
+        "columns": "course_id,phase",
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "lessons",
+    "columns": [
+      {
+        "name": "id",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "course_week_id",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "level_id",
+        "type": "smallint unsigned",
+        "nullable": false
+      },
+      {
+        "name": "title",
+        "type": "varchar(180)",
+        "nullable": false
+      },
+      {
+        "name": "summary",
+        "type": "text",
+        "nullable": false
+      },
+      {
+        "name": "content_json",
+        "type": "longtext",
+        "nullable": false
+      },
+      {
+        "name": "duration_minutes",
+        "type": "smallint unsigned",
+        "nullable": false
+      },
+      {
+        "name": "status",
+        "type": "varchar(16)",
+        "nullable": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": false
+      },
+      {
+        "name": "updated_at",
+        "type": "datetime",
+        "nullable": false
+      }
+    ],
+    "checks": [
+      "chk_lessons_content",
+      "chk_lessons_duration",
+      "chk_lessons_status"
+    ],
+    "fks": [
+      {
+        "name": "fk_lessons_week",
+        "column": "course_week_id",
+        "target": "course_weeks",
+        "ref": "id",
+        "delete": "CASCADE"
+      },
+      {
+        "name": "fk_lessons_level",
+        "column": "level_id",
+        "target": "levels",
+        "ref": "id",
+        "delete": "RESTRICT"
+      }
+    ],
+    "indexes": [
+      {
+        "name": "PRIMARY",
+        "columns": "id",
+        "unique": true
+      },
+      {
+        "name": "uq_lessons_week_level",
+        "columns": "course_week_id,level_id",
+        "unique": true
+      },
+      {
+        "name": "ix_lessons_level_status",
+        "columns": "level_id,status",
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "classrooms",
+    "columns": [
+      {
+        "name": "id",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "teacher_id",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "level_id",
+        "type": "smallint unsigned",
+        "nullable": false
+      },
+      {
+        "name": "course_id",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "name",
+        "type": "varchar(120)",
+        "nullable": false
+      },
+      {
+        "name": "school_name",
+        "type": "varchar(180)",
+        "nullable": true
+      },
+      {
+        "name": "academic_year",
+        "type": "smallint unsigned",
+        "nullable": false
+      },
+      {
+        "name": "course_start_date",
+        "type": "date",
+        "nullable": false
+      },
+      {
+        "name": "status",
+        "type": "varchar(16)",
+        "nullable": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": false
+      },
+      {
+        "name": "updated_at",
+        "type": "datetime",
+        "nullable": false
+      }
+    ],
+    "checks": [
+      "chk_classrooms_status"
+    ],
+    "fks": [
+      {
+        "name": "fk_classrooms_teacher",
+        "column": "teacher_id",
+        "target": "users",
+        "ref": "id",
+        "delete": "RESTRICT"
+      },
+      {
+        "name": "fk_classrooms_level",
+        "column": "level_id",
+        "target": "levels",
+        "ref": "id",
+        "delete": "RESTRICT"
+      },
+      {
+        "name": "fk_classrooms_course",
+        "column": "course_id",
+        "target": "courses",
+        "ref": "id",
+        "delete": "RESTRICT"
+      }
+    ],
+    "indexes": [
+      {
+        "name": "PRIMARY",
+        "columns": "id",
+        "unique": true
+      },
+      {
+        "name": "ix_classrooms_teacher_status",
+        "columns": "teacher_id,status",
+        "unique": false
+      },
+      {
+        "name": "ix_classrooms_level",
+        "columns": "level_id",
+        "unique": false
+      },
+      {
+        "name": "ix_classrooms_course",
+        "columns": "course_id",
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "classroom_enrollments",
+    "columns": [
+      {
+        "name": "classroom_id",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "student_id",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "enrolled_at",
+        "type": "datetime",
+        "nullable": false
+      }
+    ],
+    "checks": [],
+    "fks": [
+      {
+        "name": "fk_enrollments_classroom",
+        "column": "classroom_id",
+        "target": "classrooms",
+        "ref": "id",
+        "delete": "CASCADE"
+      },
+      {
+        "name": "fk_enrollments_student",
+        "column": "student_id",
+        "target": "users",
+        "ref": "id",
+        "delete": "RESTRICT"
+      }
+    ],
+    "indexes": [
+      {
+        "name": "PRIMARY",
+        "columns": "classroom_id,student_id",
+        "unique": true
+      },
+      {
+        "name": "ix_classroom_enrollments_student",
+        "columns": "student_id",
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "guardian_consents",
+    "columns": [
+      {
+        "name": "id",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "student_id",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "guardian_name",
+        "type": "varchar(120)",
+        "nullable": false
+      },
+      {
+        "name": "guardian_contact_email",
+        "type": "varchar(191)",
+        "nullable": true
+      },
+      {
+        "name": "consent_version",
+        "type": "varchar(32)",
+        "nullable": false
+      },
+      {
+        "name": "consented_at",
+        "type": "datetime",
+        "nullable": false
+      },
+      {
+        "name": "revoked_at",
+        "type": "datetime",
+        "nullable": true
+      },
+      {
+        "name": "recorded_at",
+        "type": "datetime",
+        "nullable": false
+      }
+    ],
+    "checks": [
+      "chk_guardian_consents_dates"
+    ],
+    "fks": [
+      {
+        "name": "fk_guardian_consents_student",
+        "column": "student_id",
+        "target": "users",
+        "ref": "id",
+        "delete": "RESTRICT"
+      }
+    ],
+    "indexes": [
+      {
+        "name": "PRIMARY",
+        "columns": "id",
+        "unique": true
+      },
+      {
+        "name": "ix_guardian_consents_student_date",
+        "columns": "student_id,consented_at",
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "projects",
+    "columns": [
+      {
+        "name": "id",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "owner_id",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "classroom_id",
+        "type": "char(36)",
+        "nullable": true
+      },
+      {
+        "name": "title",
+        "type": "varchar(180)",
+        "nullable": false
+      },
+      {
+        "name": "project_type",
+        "type": "varchar(40)",
+        "nullable": false
+      },
+      {
+        "name": "status",
+        "type": "varchar(16)",
+        "nullable": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": false
+      },
+      {
+        "name": "updated_at",
+        "type": "datetime",
+        "nullable": false
+      }
+    ],
+    "checks": [
+      "chk_projects_status"
+    ],
+    "fks": [
+      {
+        "name": "fk_projects_owner",
+        "column": "owner_id",
+        "target": "users",
+        "ref": "id",
+        "delete": "RESTRICT"
+      },
+      {
+        "name": "fk_projects_classroom",
+        "column": "classroom_id",
+        "target": "classrooms",
+        "ref": "id",
+        "delete": "SET NULL"
+      }
+    ],
+    "indexes": [
+      {
+        "name": "PRIMARY",
+        "columns": "id",
+        "unique": true
+      },
+      {
+        "name": "ix_projects_owner_updated",
+        "columns": "owner_id,updated_at",
+        "unique": false
+      },
+      {
+        "name": "ix_projects_classroom",
+        "columns": "classroom_id",
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "workspaces",
+    "columns": [
+      {
+        "name": "id",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "project_id",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "version",
+        "type": "int unsigned",
+        "nullable": false
+      },
+      {
+        "name": "blocks_json",
+        "type": "longtext",
+        "nullable": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": false
+      },
+      {
+        "name": "updated_at",
+        "type": "datetime",
+        "nullable": false
+      }
+    ],
+    "checks": [
+      "chk_workspaces_json",
+      "chk_workspaces_version"
+    ],
+    "fks": [
+      {
+        "name": "fk_workspaces_project",
+        "column": "project_id",
+        "target": "projects",
+        "ref": "id",
+        "delete": "CASCADE"
+      }
+    ],
+    "indexes": [
+      {
+        "name": "PRIMARY",
+        "columns": "id",
+        "unique": true
+      },
+      {
+        "name": "uq_workspaces_project",
+        "columns": "project_id",
+        "unique": true
+      }
+    ]
+  },
+  {
+    "name": "workspace_versions",
+    "columns": [
+      {
+        "name": "id",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "workspace_id",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "version",
+        "type": "int unsigned",
+        "nullable": false
+      },
+      {
+        "name": "blocks_json",
+        "type": "longtext",
+        "nullable": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": false
+      }
+    ],
+    "checks": [
+      "chk_workspace_versions_json",
+      "chk_workspace_versions_number"
+    ],
+    "fks": [
+      {
+        "name": "fk_workspace_versions_workspace",
+        "column": "workspace_id",
+        "target": "workspaces",
+        "ref": "id",
+        "delete": "CASCADE"
+      }
+    ],
+    "indexes": [
+      {
+        "name": "PRIMARY",
+        "columns": "id",
+        "unique": true
+      },
+      {
+        "name": "uq_workspace_versions_number",
+        "columns": "workspace_id,version",
+        "unique": true
+      }
+    ]
+  },
+  {
+    "name": "simulation_runs",
+    "columns": [
+      {
+        "name": "id",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "workspace_id",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "requested_by",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "workspace_version",
+        "type": "int unsigned",
+        "nullable": false
+      },
+      {
+        "name": "provider",
+        "type": "varchar(24)",
+        "nullable": false
+      },
+      {
+        "name": "status",
+        "type": "varchar(16)",
+        "nullable": false
+      },
+      {
+        "name": "seed",
+        "type": "int unsigned",
+        "nullable": false
+      },
+      {
+        "name": "parameters_json",
+        "type": "longtext",
+        "nullable": false
+      },
+      {
+        "name": "metrics_json",
+        "type": "longtext",
+        "nullable": true
+      },
+      {
+        "name": "accuracy",
+        "type": "decimal(5,4)",
+        "nullable": true
+      },
+      {
+        "name": "loss",
+        "type": "decimal(10,6)",
+        "nullable": true
+      },
+      {
+        "name": "started_at",
+        "type": "datetime",
+        "nullable": true
+      },
+      {
+        "name": "finished_at",
+        "type": "datetime",
+        "nullable": true
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": false
+      }
+    ],
+    "checks": [
+      "chk_sim_runs_provider",
+      "chk_sim_runs_status",
+      "chk_sim_runs_params",
+      "chk_sim_runs_metrics",
+      "chk_sim_runs_accuracy",
+      "chk_sim_runs_loss",
+      "chk_sim_runs_finished"
+    ],
+    "fks": [
+      {
+        "name": "fk_simulation_runs_workspace",
+        "column": "workspace_id",
+        "target": "workspaces",
+        "ref": "id",
+        "delete": "CASCADE"
+      },
+      {
+        "name": "fk_simulation_runs_user",
+        "column": "requested_by",
+        "target": "users",
+        "ref": "id",
+        "delete": "RESTRICT"
+      }
+    ],
+    "indexes": [
+      {
+        "name": "PRIMARY",
+        "columns": "id",
+        "unique": true
+      },
+      {
+        "name": "ix_simulation_runs_workspace_created",
+        "columns": "workspace_id,created_at",
+        "unique": false
+      },
+      {
+        "name": "ix_simulation_runs_user_created",
+        "columns": "requested_by,created_at",
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "lesson_progress",
+    "columns": [
+      {
+        "name": "id",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "student_id",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "lesson_id",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "status",
+        "type": "varchar(16)",
+        "nullable": false
+      },
+      {
+        "name": "completed_sections",
+        "type": "tinyint unsigned",
+        "nullable": false
+      },
+      {
+        "name": "progress_percent",
+        "type": "tinyint unsigned",
+        "nullable": false
+      },
+      {
+        "name": "last_opened_at",
+        "type": "datetime",
+        "nullable": true
+      },
+      {
+        "name": "completed_at",
+        "type": "datetime",
+        "nullable": true
+      },
+      {
+        "name": "updated_at",
+        "type": "datetime",
+        "nullable": false
+      }
+    ],
+    "checks": [
+      "chk_lesson_progress_status",
+      "chk_lesson_progress_percent"
+    ],
+    "fks": [
+      {
+        "name": "fk_lesson_progress_student",
+        "column": "student_id",
+        "target": "users",
+        "ref": "id",
+        "delete": "RESTRICT"
+      },
+      {
+        "name": "fk_lesson_progress_lesson",
+        "column": "lesson_id",
+        "target": "lessons",
+        "ref": "id",
+        "delete": "CASCADE"
+      }
+    ],
+    "indexes": [
+      {
+        "name": "PRIMARY",
+        "columns": "id",
+        "unique": true
+      },
+      {
+        "name": "uq_lesson_progress_student_lesson",
+        "columns": "student_id,lesson_id",
+        "unique": true
+      },
+      {
+        "name": "ix_lesson_progress_lesson",
+        "columns": "lesson_id",
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "challenges",
+    "columns": [
+      {
+        "name": "id",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "course_week_id",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "level_id",
+        "type": "smallint unsigned",
+        "nullable": false
+      },
+      {
+        "name": "title",
+        "type": "varchar(180)",
+        "nullable": false
+      },
+      {
+        "name": "challenge_type",
+        "type": "varchar(24)",
+        "nullable": false
+      },
+      {
+        "name": "config_json",
+        "type": "longtext",
+        "nullable": false
+      },
+      {
+        "name": "time_limit_seconds",
+        "type": "int unsigned",
+        "nullable": true
+      },
+      {
+        "name": "max_attempts",
+        "type": "tinyint unsigned",
+        "nullable": false
+      },
+      {
+        "name": "max_score",
+        "type": "decimal(6,2)",
+        "nullable": false
+      },
+      {
+        "name": "status",
+        "type": "varchar(16)",
+        "nullable": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": false
+      }
+    ],
+    "checks": [
+      "chk_challenges_type",
+      "chk_challenges_config",
+      "chk_challenges_attempts",
+      "chk_challenges_max_score",
+      "chk_challenges_status"
+    ],
+    "fks": [
+      {
+        "name": "fk_challenges_week",
+        "column": "course_week_id",
+        "target": "course_weeks",
+        "ref": "id",
+        "delete": "CASCADE"
+      },
+      {
+        "name": "fk_challenges_level",
+        "column": "level_id",
+        "target": "levels",
+        "ref": "id",
+        "delete": "RESTRICT"
+      }
+    ],
+    "indexes": [
+      {
+        "name": "PRIMARY",
+        "columns": "id",
+        "unique": true
+      },
+      {
+        "name": "uq_challenges_week_level",
+        "columns": "course_week_id,level_id",
+        "unique": true
+      },
+      {
+        "name": "ix_challenges_level",
+        "columns": "level_id",
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "classroom_challenges",
+    "columns": [
+      {
+        "name": "id",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "classroom_id",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "challenge_id",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "open_at",
+        "type": "datetime",
+        "nullable": false
+      },
+      {
+        "name": "close_at",
+        "type": "datetime",
+        "nullable": false
+      },
+      {
+        "name": "created_at",
+        "type": "datetime",
+        "nullable": false
+      }
+    ],
+    "checks": [
+      "chk_classroom_challenges_dates"
+    ],
+    "fks": [
+      {
+        "name": "fk_classroom_challenges_classroom",
+        "column": "classroom_id",
+        "target": "classrooms",
+        "ref": "id",
+        "delete": "CASCADE"
+      },
+      {
+        "name": "fk_classroom_challenges_challenge",
+        "column": "challenge_id",
+        "target": "challenges",
+        "ref": "id",
+        "delete": "RESTRICT"
+      }
+    ],
+    "indexes": [
+      {
+        "name": "PRIMARY",
+        "columns": "id",
+        "unique": true
+      },
+      {
+        "name": "uq_classroom_challenges_pair",
+        "columns": "classroom_id,challenge_id",
+        "unique": true
+      },
+      {
+        "name": "ix_classroom_challenges_challenge",
+        "columns": "challenge_id",
+        "unique": false
+      },
+      {
+        "name": "ix_classroom_challenges_window",
+        "columns": "classroom_id,open_at,close_at",
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "challenge_attempts",
+    "columns": [
+      {
+        "name": "id",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "classroom_challenge_id",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "student_id",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "attempt_no",
+        "type": "tinyint unsigned",
+        "nullable": false
+      },
+      {
+        "name": "status",
+        "type": "varchar(16)",
+        "nullable": false
+      },
+      {
+        "name": "started_at",
+        "type": "datetime",
+        "nullable": false
+      },
+      {
+        "name": "expires_at",
+        "type": "datetime",
+        "nullable": false
+      },
+      {
+        "name": "submitted_at",
+        "type": "datetime",
+        "nullable": true
+      },
+      {
+        "name": "score",
+        "type": "decimal(6,2)",
+        "nullable": true
+      },
+      {
+        "name": "answer_json",
+        "type": "longtext",
+        "nullable": true
+      }
+    ],
+    "checks": [
+      "chk_challenge_attempts_no",
+      "chk_challenge_attempts_status",
+      "chk_challenge_attempts_dates",
+      "chk_challenge_attempts_answers",
+      "chk_challenge_attempts_score"
+    ],
+    "fks": [
+      {
+        "name": "fk_challenge_attempts_assignment",
+        "column": "classroom_challenge_id",
+        "target": "classroom_challenges",
+        "ref": "id",
+        "delete": "CASCADE"
+      },
+      {
+        "name": "fk_challenge_attempts_student",
+        "column": "student_id",
+        "target": "users",
+        "ref": "id",
+        "delete": "RESTRICT"
+      }
+    ],
+    "indexes": [
+      {
+        "name": "PRIMARY",
+        "columns": "id",
+        "unique": true
+      },
+      {
+        "name": "uq_challenge_attempts_number",
+        "columns": "classroom_challenge_id,student_id,attempt_no",
+        "unique": true
+      },
+      {
+        "name": "ix_challenge_attempts_student_status",
+        "columns": "student_id,status",
+        "unique": false
+      }
+    ]
+  },
+  {
+    "name": "audit_logs",
+    "columns": [
+      {
+        "name": "id",
+        "type": "char(36)",
+        "nullable": false
+      },
+      {
+        "name": "actor_id",
+        "type": "char(36)",
+        "nullable": true
+      },
+      {
+        "name": "action",
+        "type": "varchar(80)",
+        "nullable": false
+      },
+      {
+        "name": "entity_type",
+        "type": "varchar(64)",
+        "nullable": false
+      },
+      {
+        "name": "entity_id",
+        "type": "char(36)",
+        "nullable": true
+      },
+      {
+        "name": "ip_address",
+        "type": "varchar(45)",
+        "nullable": true
+      },
+      {
+        "name": "metadata_json",
+        "type": "longtext",
+        "nullable": true
+      },
+      {
+        "name": "occurred_at",
+        "type": "datetime",
+        "nullable": false
+      }
+    ],
+    "checks": [
+      "chk_audit_logs_json"
+    ],
+    "fks": [
+      {
+        "name": "fk_audit_logs_actor",
+        "column": "actor_id",
+        "target": "users",
+        "ref": "id",
+        "delete": "SET NULL"
+      }
+    ],
+    "indexes": [
+      {
+        "name": "PRIMARY",
+        "columns": "id",
+        "unique": true
+      },
+      {
+        "name": "ix_audit_logs_actor_date",
+        "columns": "actor_id,occurred_at",
+        "unique": false
+      },
+      {
+        "name": "ix_audit_logs_entity_date",
+        "columns": "entity_type,entity_id,occurred_at",
+        "unique": false
+      },
+      {
+        "name": "ix_audit_logs_occurred",
+        "columns": "occurred_at",
+        "unique": false
+      }
+    ]
+  }
+]
