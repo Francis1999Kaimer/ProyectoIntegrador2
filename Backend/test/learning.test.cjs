@@ -29,7 +29,7 @@ async function fixture() {
   const enrollments = new Set([room.id + ':' + a.id]);
   const consents = new Set([a.id]);
   const projects = [{ id: randomUUID(), owner_id: a.id, classroom_id: room.id, title: 'A project', status: 'draft', project_type: 'blocks' }];
-  const workspaces = new Map(), snapshots = [], progress = [];
+  const workspaces = new Map(), snapshots = [], progress = [], simulations = [];
   const lesson = { id: lessonId, level_id: 1, title: 'Test lesson', content_json: JSON.stringify({ sections: [1,2,3,4,5] }) };
   const canRoom = (actor, r) => actor.role === 'admin' || (actor.role === 'teacher' ? r.teacher_id === actor.id : enrollments.has(r.id + ':' + actor.id));
   const repo = {
@@ -89,6 +89,11 @@ async function fixture() {
       const next = { id: previous?.id ?? randomUUID(), project_id: id, version: version + 1, blocks_json: json };
       workspaces.set(id, next); snapshots.push({ ...next }); return next;
     },
+    listSimulations: async workspace_id => simulations.filter(run => run.workspace_id === workspace_id),
+    createSimulation: async input => {
+      const now = new Date(), run = { id: randomUUID(), ...input, status: 'completed', accuracy: String(input.accuracy), loss: String(input.loss), started_at: now, finished_at: now, created_at: now };
+      simulations.push(run); return run;
+    },
     listProgress: async access => progress.filter(p => p.student_id === access.student_id),
     saveProgress: async (student_id, lesson_id, sections, total) => {
       let p = progress.find(p => p.student_id === student_id && p.lesson_id === lesson_id);
@@ -123,9 +128,15 @@ async function fixture() {
     }, body: body === undefined ? undefined : JSON.stringify(body) });
     return { status: response.status, body: response.status === 204 ? null : await response.json() };
   }
-  return { app, base, users, a, b, t, other, admin, course, room, rooms, otherRoom, projects, repo, call, lessonId, progress, snapshots, workspaces, enrollments };
+  return { app, base, users, a, b, t, other, admin, course, room, rooms, otherRoom, projects, repo, call, lessonId, progress, snapshots, workspaces, simulations, enrollments };
 }
 const graph = { schemaVersion: 1, nodes: [{ id: 'n1', position: { x: 0, y: 0 }, data: { label: 'Input' } }], edges: [] };
+const simulationGraph = { schemaVersion: 1, nodes: [
+  { id: 'data', position: { x: 0, y: 0 }, data: { label: 'Datos', kind: 'dataset' } },
+  { id: 'model', position: { x: 100, y: 0 }, data: { label: 'Modelo', kind: 'model' } },
+  { id: 'train', position: { x: 200, y: 0 }, data: { label: 'Entrenar', kind: 'train' } },
+  { id: 'evaluate', position: { x: 300, y: 0 }, data: { label: 'Evaluar', kind: 'evaluate' } }
+], edges: [{ id: 'a', source: 'data', target: 'model' }, { id: 'b', source: 'model', target: 'train' }, { id: 'c', source: 'train', target: 'evaluate' }] };
 async function withFixture(run) { const f = await fixture(); try { await run(f); } finally { await f.app.close(); } }
 
 test('business APIs require JWT and roles; classroom, roster and project lists are scoped', () => withFixture(async f => {
@@ -196,7 +207,7 @@ test('classrooms validate catalog, real dates and teacher assignment; outsiders 
 }));
 
 test('project ownership comes from JWT; teachers/admin inspect but cannot overwrite another owner', () => withFixture(async f => {
-  const body={title:'Personal',project_type:'blocks'};
+  const body={title:'Personal',project_type:'character_recognition'};
   assert.equal((await f.call(f.a,'POST','/projects',{...body,owner_id:f.b.id})).status,400);
   assert.equal((await f.call(f.b,'POST','/projects',{...body,classroom_id:f.room.id})).status,404);
   const created=await f.call(f.a,'POST','/projects',{...body,classroom_id:f.room.id});
@@ -224,6 +235,22 @@ test('workspace saves keep snapshots, reject stale writes and allow exactly one 
   assert.equal((await f.call(f.a,'GET',path)).body.version,3); assert.equal(f.snapshots.length,3);
   await f.call(f.a,'PATCH',`/projects/${f.projects[0].id}`,{status:'archived'});
   assert.equal((await f.call(f.a,'PUT',path,{version:3,blocks:graph})).status,400);
+}));
+
+test('pedagogical simulations validate pipelines, persist deterministic metrics and follow project access', () => withFixture(async f => {
+  const projectId = f.projects[0].id, workspace = `/projects/${projectId}/workspace`, simulations = `/projects/${projectId}/simulations`;
+  assert.equal((await f.call(f.a,'POST',simulations)).status,400);
+  assert.equal((await f.call(f.a,'PUT',workspace,{version:0,blocks:simulationGraph})).status,200);
+  const first = await f.call(f.a,'POST',simulations);
+  assert.equal(first.status,201); assert.equal(first.body.status,'completed'); assert.equal(first.body.provider,'deterministic');
+  assert.equal(typeof first.body.metrics.validation_accuracy,'number'); assert.equal(first.body.parameters.epochs,20);
+  const second = await f.call(f.a,'POST',simulations);
+  assert.equal(second.body.metrics.validation_accuracy,first.body.metrics.validation_accuracy,'same pipeline has deterministic output');
+  assert.equal((await f.call(f.t,'GET',simulations)).status,200);
+  assert.equal((await f.call(f.b,'GET',simulations)).status,404);
+  const invalid = { ...simulationGraph, edges: [{ id: 'broken', source: 'data', target: 'evaluate' }] };
+  assert.equal((await f.call(f.a,'PUT',workspace,{version:1,blocks:invalid})).status,200);
+  assert.equal((await f.call(f.a,'POST',simulations)).status,400);
 }));
 
 test('workspace validation rejects malformed graphs, dangling edges, duplicate ids and oversized data', () => withFixture(async f => {

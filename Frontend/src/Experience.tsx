@@ -2,7 +2,6 @@ import { type ReactNode } from 'react'
 import { Link, Navigate, useLocation } from 'react-router'
 import App from './App'
 import CreateProjectDynamic from './components/CreateProjectDynamic'
-import { DynamicDatasetPage, DynamicModelPage, DynamicPreparationPage } from './components/DynamicProjectFlow'
 import { AuthProvider, useAuth } from './auth/AuthProvider'
 import { LoginPage, PasswordPage } from './auth/AuthPages'
 import { ApiMessage, Page } from './components/AppShell'
@@ -11,7 +10,7 @@ import type { Project } from './api/types'
 import { useEffect } from 'react'
 import { useProjectStore } from './store/project'
 
-const workflowPaths = ['/dataset','/preparacion','/modelo','/editor','/entrenamiento','/evaluacion','/prediccion']
+const workflowPaths = ['/dataset','/preparacion','/modelo','/entrenamiento','/evaluacion','/prediccion']
 function ProjectSelection({children}:{children:ReactNode}) {
   const {search} = useLocation(), id = new URLSearchParams(search).get('project')
   const result = useResource<Project>(id ? '/projects/'+encodeURIComponent(id) : null)
@@ -19,15 +18,12 @@ function ProjectSelection({children}:{children:ReactNode}) {
   useEffect(()=>{if(result.data)select(result.data)},[result.data,select])
   if (!id) return <Page><section className="panel empty-state"><h1>Selecciona un proyecto</h1><Link to="/proyectos">Ir a proyectos</Link></section></Page>
   if (result.loading || result.error || !result.data || selectedId!==id) return <Page><ApiMessage loading={result.loading||(!result.error&&selectedId!==id)} error={result.error} retry={result.reload}/></Page>
-  return <><div className="demo-notice" role="note">Ejemplo educativo: el dataset, el pipeline y los resultados mostrados son ilustrativos. Los cambios de estas pantallas aún no se guardan.</div>{children}</>
+  return <><div className="demo-notice" role="note">Laboratorio de caracteres: el dataset y el modelo se guardan localmente en este navegador. El entrenamiento es real y no se envían imágenes al servidor.</div>{children}</>
 }
 function RoutedExperience() {
   const {pathname} = useLocation()
   if (pathname==='/crear') return <CreateProjectDynamic/>
   let content:ReactNode = <App/>
-  if(pathname==='/dataset') content=<DynamicDatasetPage/>
-  if(pathname==='/preparacion') content=<DynamicPreparationPage/>
-  if(pathname==='/modelo') content=<DynamicModelPage/>
   return workflowPaths.includes(pathname)?<ProjectSelection>{content}</ProjectSelection>:content
 }
 export function Gate() {

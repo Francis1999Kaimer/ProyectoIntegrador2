@@ -5,6 +5,9 @@ import React,{act} from 'react'
 const dom=new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>',{url:'http://localhost:5173/'})
 for(const key of ['window','document','HTMLElement','HTMLInputElement','HTMLSelectElement','sessionStorage','Event','MouseEvent','CustomEvent'])globalThis[key]=dom.window[key]
 Object.defineProperty(globalThis,'navigator',{value:dom.window.navigator,configurable:true})
+globalThis.ResizeObserver=class {observe(){} unobserve(){} disconnect(){}}
+globalThis.requestAnimationFrame=callback=>setTimeout(callback,0)
+globalThis.cancelAnimationFrame=id=>clearTimeout(id)
 globalThis.IS_REACT_ACT_ENVIRONMENT=true
 let current
 const PASSWORD='test-only-password-123'
@@ -37,7 +40,16 @@ globalThis.fetch=async(url,options={})=>{
     return json(200,current.projects.filter(p=>user.role==='admin'||p.owner_id===user.id).slice(Number(u.searchParams.get('offset')??0),Number(u.searchParams.get('offset')??0)+Number(u.searchParams.get('limit')??25)))
   }
   if(path.startsWith('/projects/')){
-    const p=current.projects.find(p=>p.id===path.split('/')[2]);if(!p)return json(404,{})
+    const [, , projectId, resource] = path.split('/'),p=current.projects.find(p=>p.id===projectId);if(!p)return json(404,{})
+    if(resource==='workspace'){
+      if(method==='GET'){const workspace=current.workspaces.get(projectId);return workspace?json(200,workspace):json(404,{})}
+      const previous=current.workspaces.get(projectId),workspace={id:previous?.id??uid(++current.sequence+500),project_id:projectId,version:(previous?.version??0)+1,blocks:body.blocks};current.workspaces.set(projectId,workspace);return json(200,workspace)
+    }
+    if(resource==='simulations'){
+      if(method==='GET')return json(200,current.simulations.filter(run=>run.project_id===projectId))
+      const workspace=current.workspaces.get(projectId);if(!workspace)return json(400,{})
+      const run={id:uid(++current.sequence+600),project_id:projectId,workspace_id:workspace.id,workspace_version:workspace.version,status:'completed',provider:'pedagogical-deterministic-v1',seed:42,created_at:new Date().toISOString(),accuracy:'0.9120',loss:'0.063360',parameters:{epochs:20},metrics:{train_accuracy:.93,validation_accuracy:.912,precision:.905,recall:.919,f1:.912,loss:.06336,epochs:20,confusion_matrix:[[88,12],[7,93]],prediction:{label:'Clase A',confidence:.88}}};current.simulations.unshift(run);return json(201,run)
+    }
     if(method==='PATCH'){Object.assign(p,body);return json(200,p)}return json(200,p)
   }
   if(path==='/classrooms'){
@@ -88,7 +100,7 @@ const {BrowserRouter}=await import('react-router')
 const {AuthProvider,Gate,api,setToken,getToken,useProjectStore}=await import('../.test-build/ui/entry.js')
 let root
 function fresh(){
-  current={users:['student','teacher','admin'].map((role,i)=>({id:uid(i+1),username:role,display_name:'Test '+role,role,status:'active',must_change_password:false,password:PASSWORD})),tokens:new Map(),sequence:0,requests:[],projects:[],progress:[],consents:new Set([uid(1)]),enrolled:new Set()}
+  current={users:['student','teacher','admin'].map((role,i)=>({id:uid(i+1),username:role,display_name:'Test '+role,role,status:'active',must_change_password:false,password:PASSWORD})),tokens:new Map(),sequence:0,requests:[],projects:[],progress:[],simulations:[],workspaces:new Map(),consents:new Set([uid(1)]),enrolled:new Set()}
   current.rooms=[{id:uid(50),teacher_id:uid(2),name:'Salon piloto',course_id:uid(90),level_id:1,academic_year:2026,status:'active'}]
   current.enrolled.add(uid(50)+':'+uid(1))
   current.lesson={id:uid(60),title:'Leccion piloto',summary:'Contenido publicado',content:{sections:Array.from({length:5},(_,i)=>({title:'Seccion '+(i+1),text:i===0?'<img src=x onerror=alert(1)>':'Texto de lectura'}))}}
@@ -115,8 +127,8 @@ test('unauthenticated deep link redirects to login; incorrect password shows err
   await login();assert.equal(window.location.pathname,'/proyectos/'+uid(40));assert.match(text(),/Proyecto persistido/)
 }))
 test('project creation uses API, persists metadata, survives session restore and sends no caller owner id',()=>fixture(async()=>{
-  await mount();await login();await click('Crear proyecto');await fill('Nombre del proyecto','Proyecto nuevo DOM');await click('Crear y continuar')
-  assert.equal(window.location.pathname,'/dataset');assert.match(text(),/Ejemplo educativo/)
+  await mount();await login();await click('Crear proyecto');await fill('Nombre del proyecto','Proyecto nuevo DOM');await click('Crear y cargar dataset')
+  assert.equal(window.location.pathname,'/dataset');assert.match(text(),/Laboratorio de caracteres/)
   const created=current.projects.find(p=>p.title==='Proyecto nuevo DOM');assert.ok(created)
   assert.equal(new URLSearchParams(window.location.search).get('project'),created.id)
   assert.equal(current.requests.find(r=>r.method==='POST'&&r.path==='/projects').body.owner_id,undefined)
@@ -138,6 +150,10 @@ test('admin selects an active teacher instead of entering a classroom UUID',()=>
 test('admin sees the responsible teacher in classroom details',()=>fixture(async()=>{
   await mount();await login('admin');await click('Salones');await click('Salon pilotoAño 2026Activo');await settle()
   assert.match(text(),/Docente responsable: Test teacher · teacher/)
+}))
+test('character-recognition workflow exposes one CNN model instead of generic simulated projects',()=>fixture(async()=>{
+  await mount('/modelo?project='+uid(40));await login();await settle();assert.match(text(),/ÚNICO MODELO DISPONIBLE/)
+  assert.match(text(),/CNN para caracteres individuales/);assert.ok(!text().includes('MobileNet'));assert.match(text(),/no hay modelos genéricos/i)
 }))
 test('student lesson content is escaped and reading progress is written and refreshed',()=>fixture(async()=>{
   await mount();await login();await click('Salones');await click('Salon pilotoAño 2026Activo');await click('Leccion piloto')

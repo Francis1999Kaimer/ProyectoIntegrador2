@@ -11,7 +11,7 @@ El producto busca un primer despliegue verificable, no la totalidad del currícu
 | 5 | Login, JWT, roles y permisos | Pruebas locales superadas: 19 tests, tres roles, JWT rechazados y health ok/up |
 | 6 | APIs reales: alumnos, salones, proyectos, workspaces, progreso | Pruebas locales superadas con MySQL: escrituras, permisos, concurrencia y revocación |
 | 7 | Conectar frontend actual con backend y reemplazar mocks esenciales | Implementado; pruebas UI/compilación superadas y administración de alumnos, docentes, salones, matrículas, proyectos y lecciones conectada |
-| 8 | Persistir editor React Flow y resultados de entrenamiento pedagógico | Pendiente |
+| 8 | Persistir editor React Flow y resultados de entrenamiento pedagógico | Implementado; pruebas de API, UI y compilación superadas, pendiente de demostración manual local |
 | 9 | Validaciones, controles de seguridad y auditoría | Pendiente |
 | 10 | Documentación APF2: BD, replicación, cifrado, pruebas y despliegue | Pendiente |
 | 11 | Pruebas unitarias/integración/seguridad con evidencias | Pendiente |
@@ -106,3 +106,12 @@ El bundle también se compila. Para la demostración real contra la API y MySQL 
 Aceptación del hito 6: evidencia del usuario del 9 de octubre de 2026 confirma el script
 `apis-smoke.cjs` contra MySQL real: alumno/consentimiento/activación, salón/matrícula,
 proyecto y snapshots concurrentes, progreso y revocación; GET `/health` devolvió `ok/up`.
+
+## Hito 8
+
+El producto se centra en un único tipo de proyecto: reconocimiento de caracteres individuales.
+El usuario carga un ZIP etiquetado, entrena una CNN real con TensorFlow.js en el navegador,
+evalúa accuracy/loss y prueba una imagen nueva. Dataset, métricas y modelo quedan en IndexedDB
+del navegador; el backend conserva el proyecto, permisos y solo permite crear
+`character_recognition`. El alcance y formato del dataset están en
+[HITO8_RECONOCIMIENTO_CARACTERES.md](HITO8_RECONOCIMIENTO_CARACTERES.md).

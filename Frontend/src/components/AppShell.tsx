@@ -12,7 +12,7 @@ export function Header() {
   </header>
 }
 export function workflow(path: string, id: string | null) { return id ? path + '?project=' + encodeURIComponent(id) : path }
-const steps = [['/dataset','Datos'],['/preparacion','Preparación'],['/modelo','Modelo'],['/editor','Pipeline'],['/entrenamiento','Entrenar'],['/evaluacion','Evaluar'],['/prediccion','Probar']]
+const steps = [['/dataset','Datos'],['/preparacion','Preparación'],['/modelo','Modelo'],['/entrenamiento','Entrenar'],['/evaluacion','Evaluar'],['/prediccion','Probar']]
 export function ProjectStepper() {
   const { pathname } = useLocation(), id = useProjectStore(s=>s.id)
   return <div className="stepper">{steps.map(([path,label],i)=><Link key={path} to={workflow(path,id)} className={pathname===path?'active':''}><span>{i+1}</span>{label}</Link>)}</div>

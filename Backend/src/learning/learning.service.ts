@@ -1,8 +1,9 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { PasswordService } from '../auth/password.service';
-import { PageRequest, Project, Workspace } from '../repositories/contracts';
+import { PageRequest, Project, SimulationRun, Workspace } from '../repositories/contracts';
 import { Actor, LEARNING_REPOSITORY, LearningRepository } from '../repositories/learning.contracts';
 import { ClassroomDto, ClassroomPatchDto, ConsentDto, ProjectDto, ProjectPatchDto, StudentDto, TeacherDto, WorkspaceDto } from './learning.dto';
+import { simulatePedagogically } from './pedagogical-simulation';
 
 @Injectable()
 export class LearningService {
@@ -115,6 +116,27 @@ export class LearningService {
     }
     const json = this.graph(input.blocks);
     return this.workspaceView(await this.repo.saveWorkspace(projectId, input.version, json));
+  }
+  private simulationView(row: SimulationRun) {
+    const { parameters_json, metrics_json, ...meta } = row;
+    return { ...meta, parameters: JSON.parse(parameters_json), metrics: metrics_json ? JSON.parse(metrics_json) : null };
+  }
+  async simulations(actor: Actor, projectId: string, page: PageRequest) {
+    await this.project(actor, projectId);
+    const workspace = await this.repo.workspace(projectId);
+    if (!workspace) return [];
+    return (await this.repo.listSimulations(workspace.id, page)).map(row => this.simulationView(row));
+  }
+  async simulate(actor: Actor, projectId: string) {
+    await this.project(actor, projectId, true);
+    const workspace = await this.repo.workspace(projectId);
+    if (!workspace) throw new BadRequestException('Guarda un pipeline válido antes de ejecutar la simulación.');
+    const result = simulatePedagogically(workspace.blocks_json);
+    return this.simulationView(await this.repo.createSimulation({
+      workspace_id: workspace.id, requested_by: actor.id, workspace_version: workspace.version,
+      provider: result.provider, seed: result.seed, parameters_json: JSON.stringify(result.parameters),
+      metrics_json: JSON.stringify(result.metrics), accuracy: result.accuracy, loss: result.loss
+    }));
   }
   private graph(blocks: Record<string, unknown>): string {
     const fail = () => { throw new BadRequestException('Grafo inválido: schemaVersion 1, nodos y aristas válidos; máximo 64 KiB.'); };

@@ -14,7 +14,9 @@
     "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
+    "@tensorflow/tfjs": "^4.22.0",
     "@xyflow/react": "^12.11.6",
+    "jszip": "^3.10.2",
     "lucide-react": "^1.43.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

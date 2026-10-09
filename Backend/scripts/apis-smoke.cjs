@@ -76,14 +76,14 @@ async function main() {
   console.log('PASS: salon, matricula idempotente, roster sin credenciales y acceso por matricula.');
   stage = 'proyecto y workspace';
   const project = await call('POST', '/projects', studentToken, {
-    title: 'Proyecto APF2 ' + run, project_type: 'blocks', classroom_id: roomId
+    title: 'Proyecto APF2 ' + run, project_type: 'character_recognition', classroom_id: roomId
   }, 201);
   projectId = project.id;
   assert.equal(project.owner_id, studentId);
   await call('GET', '/projects/' + projectId, outsider, undefined, 404);
   await call('GET', '/projects/' + projectId, teacherToken);
   await call('PATCH', '/projects/' + projectId, teacherToken, { title: 'No autorizado' }, 404);
-  await call('POST', '/projects', studentToken, { title: 'No autorizado', project_type: 'blocks', owner_id: teacher.id }, 400);
+  await call('POST', '/projects', studentToken, { title: 'No autorizado', project_type: 'character_recognition', owner_id: teacher.id }, 400);
   await call('PATCH', '/projects/' + projectId, studentToken, { title: 'Proyecto renombrado APF2 ' + run });
   const path = '/projects/' + projectId + '/workspace';
   const blocks = { schemaVersion: 1, nodes: [{ id: 'input', type: 'input', position: { x: 0, y: 0 }, data: { label: 'Prueba sintetica' } }], edges: [] };

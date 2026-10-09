@@ -1,4 +1,4 @@
-import { Classroom, LessonProgress, PageRequest, Project, Workspace } from './contracts';
+import { Classroom, LessonProgress, PageRequest, Project, SimulationRun, Workspace } from './contracts';
 
 // Domain types: no ORM, HTTP or password service dependency.
 export interface Actor { id: string; role: string; }
@@ -22,6 +22,10 @@ export interface Catalog {
   courses: { id: string; slug: string; title: string; total_weeks: number }[];
 }
 export interface ProgressAccess { student_id: string; teacher_id?: string; }
+export interface NewSimulationRun {
+  workspace_id: string; requested_by: string; workspace_version: number; provider: string; seed: number;
+  parameters_json: string; metrics_json: string; accuracy: number; loss: number;
+}
 export interface LearningRepository {
   catalog(): Promise<Catalog>;
   listStudents(actor: Actor, page: PageRequest): Promise<Student[]>;
@@ -54,6 +58,8 @@ export interface LearningRepository {
   updateProject(id: string, input: ProjectPatch): Promise<Project>;
   workspace(projectId: string): Promise<Workspace | null>;
   saveWorkspace(projectId: string, version: number, json: string): Promise<Workspace>;
+  listSimulations(workspaceId: string, page: PageRequest): Promise<SimulationRun[]>;
+  createSimulation(input: NewSimulationRun): Promise<SimulationRun>;
   listProgress(access: ProgressAccess, page: PageRequest): Promise<LessonProgress[]>;
   saveProgress(studentId: string, lessonId: string, sections: number, total: number): Promise<LessonProgress>;
 }

@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { PageRequest } from './contracts';
 import { pagination } from './pagination';
-import { Actor, ClassroomPatch, ConsentInput, DataConflict, DataMissing, LearningRepository, NewClassroom, NewStudent, ProgressAccess, ProjectPatch } from './learning.contracts';
+import { Actor, ClassroomPatch, ConsentInput, DataConflict, DataMissing, LearningRepository, NewClassroom, NewSimulationRun, NewStudent, ProgressAccess, ProjectPatch } from './learning.contracts';
 
 const studentSelect = { id: true, username: true, display_name: true, status: true } as const;
 const teacherSelect = { id: true, username: true, display_name: true, status: true } as const;
@@ -208,6 +208,19 @@ export class PrismaLearningRepository implements LearningRepository {
       await tx.workspace_versions.create({ data: { id: randomUUID(), workspace_id: row.id, version: row.version, blocks_json: json } });
       return row;
     }));
+  }
+  async listSimulations(workspaceId: string, page: PageRequest) {
+    const rows = await this.db.simulation_runs.findMany({ where: { workspace_id: workspaceId }, ...pagination(page), orderBy: [{ created_at: 'desc' }, { id: 'asc' }] });
+    return rows.map(row => ({ ...row, accuracy: row.accuracy?.toString() ?? null, loss: row.loss?.toString() ?? null }));
+  }
+  createSimulation(input: NewSimulationRun) {
+    return this.write(async () => {
+      const now = new Date();
+      const row = await this.db.simulation_runs.create({ data: {
+        id: randomUUID(), ...input, status: 'completed', started_at: now, finished_at: now
+      } });
+      return { ...row, accuracy: row.accuracy?.toString() ?? null, loss: row.loss?.toString() ?? null };
+    });
   }
   async listProgress(access: ProgressAccess, page: PageRequest) {
     const bounds = pagination(page);

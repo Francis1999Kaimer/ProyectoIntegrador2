@@ -58,6 +58,10 @@ export class LearningController {
   workspace(@Req() req: AuthRequest, @Param('id', uuid) id: string) { return this.service.workspace(req.user!, id); }
   @Put('projects/:id/workspace') @Header('Cache-Control', 'no-store')
   saveWorkspace(@Req() req: AuthRequest, @Param('id', uuid) id: string, @Body() body: WorkspaceDto) { return this.service.saveWorkspace(req.user!, id, body); }
+  @Get('projects/:id/simulations') @Header('Cache-Control', 'no-store')
+  simulations(@Req() req: AuthRequest, @Param('id', uuid) id: string, @Query() page: PageDto) { return this.service.simulations(req.user!, id, page); }
+  @Post('projects/:id/simulations') @Header('Cache-Control', 'no-store')
+  simulate(@Req() req: AuthRequest, @Param('id', uuid) id: string) { return this.service.simulate(req.user!, id); }
   @Get('progress') @Roles('student') @Header('Cache-Control', 'no-store')
   myProgress(@Req() req: AuthRequest, @Query() page: PageDto) { return this.service.progress(req.user!, req.user!.id, page); }
   @Get('students/:id/progress') @Roles('teacher', 'admin') @Header('Cache-Control', 'no-store')

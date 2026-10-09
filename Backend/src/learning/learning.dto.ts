@@ -38,7 +38,7 @@ export class ClassroomPatchDto {
 export class EnrollmentDto { @IsUUID('4') student_id!: string; }
 export class ProjectDto {
   @Transform(trim) @IsString() @Length(1, 180) title!: string;
-  @Transform(trim) @IsString() @Length(1, 40) @Matches(/^[a-z][a-z0-9_-]*$/) project_type!: string;
+  @Transform(trim) @IsString() @IsIn(['character_recognition']) project_type!: string;
   @ValidateIf(present) @IsUUID('4') classroom_id?: string;
 }
 export class ProjectPatchDto {
