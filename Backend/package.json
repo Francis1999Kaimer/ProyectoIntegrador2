@@ -1,0 +1,36 @@
+{
+  "name": "aiblocks-backend",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.12.0 <25"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main.js",
+    "start:dev": "ts-node src/main.ts",
+    "prisma:validate": "prisma validate",
+    "prisma:generate": "prisma generate",
+    "prisma:pull": "prisma db pull",
+    "prisma:baseline": "node scripts/baseline.cjs",
+    "prisma:status": "prisma migrate status",
+    "prisma:deploy": "prisma migrate deploy",
+    "test": "node --test test/*.test.cjs"
+  },
+  "dependencies": {
+    "@nestjs/common": "11.1.6",
+    "@nestjs/config": "4.0.2",
+    "@nestjs/core": "11.1.6",
+    "@nestjs/platform-express": "11.1.6",
+    "@prisma/client": "6.19.0",
+    "dotenv": "16.6.1",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2"
+  },
+  "devDependencies": {
+    "@types/node": "22.18.6",
+    "prisma": "6.19.0",
+    "ts-node": "10.9.2",
+    "typescript": "5.9.2"
+  }
+}

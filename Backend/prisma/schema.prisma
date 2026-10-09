@@ -1,0 +1,300 @@
+// Modelado desde database/schema.sql; confirmar con prisma db pull en MySQL local.
+// CHECK, collation y ON UPDATE CURRENT_TIMESTAMP permanecen en el SQL inicial.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model levels {
+  id                       Int          @id @default(autoincrement()) @db.UnsignedSmallInt
+  slug                     String       @db.VarChar(32)
+  name                     String       @db.VarChar(80)
+  min_age                  Int          @db.UnsignedTinyInt
+  max_age                  Int?         @db.UnsignedTinyInt
+  created_at               DateTime     @default(now()) @db.DateTime(0)
+  back_fk_lessons_level    lessons[]    @relation("fk_lessons_level")
+  back_fk_classrooms_level classrooms[] @relation("fk_classrooms_level")
+  back_fk_challenges_level challenges[] @relation("fk_challenges_level")
+
+  @@unique([slug], map: "uq_levels_slug")
+}
+
+model users {
+  id                                 String                  @id @db.Char(36)
+  username                           String                  @db.VarChar(64)
+  email                              String?                 @db.VarChar(191)
+  password_hash                      String                  @db.VarChar(255)
+  role                               String                  @db.VarChar(16)
+  status                             String                  @default("pending") @db.VarChar(16)
+  display_name                       String                  @db.VarChar(120)
+  must_change_password               Boolean                 @default(true)
+  last_login_at                      DateTime?               @db.DateTime(0)
+  created_at                         DateTime                @default(now()) @db.DateTime(0)
+  updated_at                         DateTime                @default(now()) @db.DateTime(0)
+  back_fk_classrooms_teacher         classrooms[]            @relation("fk_classrooms_teacher")
+  back_fk_enrollments_student        classroom_enrollments[] @relation("fk_enrollments_student")
+  back_fk_guardian_consents_student  guardian_consents[]     @relation("fk_guardian_consents_student")
+  back_fk_projects_owner             projects[]              @relation("fk_projects_owner")
+  back_fk_simulation_runs_user       simulation_runs[]       @relation("fk_simulation_runs_user")
+  back_fk_lesson_progress_student    lesson_progress[]       @relation("fk_lesson_progress_student")
+  back_fk_challenge_attempts_student challenge_attempts[]    @relation("fk_challenge_attempts_student")
+  back_fk_audit_logs_actor           audit_logs[]            @relation("fk_audit_logs_actor")
+
+  @@unique([username], map: "uq_users_username")
+  @@unique([email], map: "uq_users_email")
+  @@index([role, status], map: "ix_users_role_status")
+}
+
+model courses {
+  id                          String         @id @db.Char(36)
+  slug                        String         @db.VarChar(80)
+  title                       String         @db.VarChar(180)
+  description                 String?        @db.Text
+  total_weeks                 Int            @default(24) @db.UnsignedTinyInt
+  status                      String         @default("draft") @db.VarChar(16)
+  created_at                  DateTime       @default(now()) @db.DateTime(0)
+  updated_at                  DateTime       @default(now()) @db.DateTime(0)
+  back_fk_course_weeks_course course_weeks[] @relation("fk_course_weeks_course")
+  back_fk_classrooms_course   classrooms[]   @relation("fk_classrooms_course")
+
+  @@unique([slug], map: "uq_courses_slug")
+}
+
+model course_weeks {
+  id                         String       @id @db.Char(36)
+  course_id                  String       @db.Char(36)
+  week_number                Int          @db.UnsignedTinyInt
+  phase                      Int          @db.UnsignedTinyInt
+  title                      String       @db.VarChar(160)
+  objective                  String       @db.VarChar(300)
+  created_at                 DateTime     @default(now()) @db.DateTime(0)
+  rel_fk_course_weeks_course courses      @relation("fk_course_weeks_course", fields: [course_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_course_weeks_course")
+  back_fk_lessons_week       lessons[]    @relation("fk_lessons_week")
+  back_fk_challenges_week    challenges[] @relation("fk_challenges_week")
+
+  @@unique([course_id, week_number], map: "uq_course_weeks_number")
+  @@index([course_id, phase], map: "ix_course_weeks_phase")
+}
+
+model lessons {
+  id                             String            @id @db.Char(36)
+  course_week_id                 String            @db.Char(36)
+  level_id                       Int               @db.UnsignedSmallInt
+  title                          String            @db.VarChar(180)
+  summary                        String            @db.Text
+  content_json                   String            @db.LongText
+  duration_minutes               Int               @default(30) @db.UnsignedSmallInt
+  status                         String            @default("draft") @db.VarChar(16)
+  created_at                     DateTime          @default(now()) @db.DateTime(0)
+  updated_at                     DateTime          @default(now()) @db.DateTime(0)
+  rel_fk_lessons_week            course_weeks      @relation("fk_lessons_week", fields: [course_week_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_lessons_week")
+  rel_fk_lessons_level           levels            @relation("fk_lessons_level", fields: [level_id], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_lessons_level")
+  back_fk_lesson_progress_lesson lesson_progress[] @relation("fk_lesson_progress_lesson")
+
+  @@unique([course_week_id, level_id], map: "uq_lessons_week_level")
+  @@index([level_id, status], map: "ix_lessons_level_status")
+}
+
+model classrooms {
+  id                                     String                  @id @db.Char(36)
+  teacher_id                             String                  @db.Char(36)
+  level_id                               Int                     @db.UnsignedSmallInt
+  course_id                              String                  @db.Char(36)
+  name                                   String                  @db.VarChar(120)
+  school_name                            String?                 @db.VarChar(180)
+  academic_year                          Int                     @db.UnsignedSmallInt
+  course_start_date                      DateTime                @db.Date
+  status                                 String                  @default("active") @db.VarChar(16)
+  created_at                             DateTime                @default(now()) @db.DateTime(0)
+  updated_at                             DateTime                @default(now()) @db.DateTime(0)
+  rel_fk_classrooms_teacher              users                   @relation("fk_classrooms_teacher", fields: [teacher_id], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_classrooms_teacher")
+  rel_fk_classrooms_level                levels                  @relation("fk_classrooms_level", fields: [level_id], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_classrooms_level")
+  rel_fk_classrooms_course               courses                 @relation("fk_classrooms_course", fields: [course_id], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_classrooms_course")
+  back_fk_enrollments_classroom          classroom_enrollments[] @relation("fk_enrollments_classroom")
+  back_fk_projects_classroom             projects[]              @relation("fk_projects_classroom")
+  back_fk_classroom_challenges_classroom classroom_challenges[]  @relation("fk_classroom_challenges_classroom")
+
+  @@index([teacher_id, status], map: "ix_classrooms_teacher_status")
+  @@index([level_id], map: "ix_classrooms_level")
+  @@index([course_id], map: "ix_classrooms_course")
+}
+
+model classroom_enrollments {
+  classroom_id                 String     @db.Char(36)
+  student_id                   String     @db.Char(36)
+  enrolled_at                  DateTime   @default(now()) @db.DateTime(0)
+  rel_fk_enrollments_classroom classrooms @relation("fk_enrollments_classroom", fields: [classroom_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_enrollments_classroom")
+  rel_fk_enrollments_student   users      @relation("fk_enrollments_student", fields: [student_id], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_enrollments_student")
+
+  @@id([classroom_id, student_id])
+  @@index([student_id], map: "ix_classroom_enrollments_student")
+}
+
+model guardian_consents {
+  id                               String    @id @db.Char(36)
+  student_id                       String    @db.Char(36)
+  guardian_name                    String    @db.VarChar(120)
+  guardian_contact_email           String?   @db.VarChar(191)
+  consent_version                  String    @db.VarChar(32)
+  consented_at                     DateTime  @db.DateTime(0)
+  revoked_at                       DateTime? @db.DateTime(0)
+  recorded_at                      DateTime  @default(now()) @db.DateTime(0)
+  rel_fk_guardian_consents_student users     @relation("fk_guardian_consents_student", fields: [student_id], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_guardian_consents_student")
+
+  @@index([student_id, consented_at], map: "ix_guardian_consents_student_date")
+}
+
+model projects {
+  id                         String      @id @db.Char(36)
+  owner_id                   String      @db.Char(36)
+  classroom_id               String?     @db.Char(36)
+  title                      String      @db.VarChar(180)
+  project_type               String      @db.VarChar(40)
+  status                     String      @default("draft") @db.VarChar(16)
+  created_at                 DateTime    @default(now()) @db.DateTime(0)
+  updated_at                 DateTime    @default(now()) @db.DateTime(0)
+  rel_fk_projects_owner      users       @relation("fk_projects_owner", fields: [owner_id], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_projects_owner")
+  rel_fk_projects_classroom  classrooms? @relation("fk_projects_classroom", fields: [classroom_id], references: [id], onDelete: SetNull, onUpdate: Restrict, map: "fk_projects_classroom")
+  back_fk_workspaces_project workspaces? @relation("fk_workspaces_project")
+
+  @@index([owner_id, updated_at], map: "ix_projects_owner_updated")
+  @@index([classroom_id], map: "ix_projects_classroom")
+}
+
+model workspaces {
+  id                                   String               @id @db.Char(36)
+  project_id                           String               @db.Char(36)
+  version                              Int                  @default(1) @db.UnsignedInt
+  blocks_json                          String               @db.LongText
+  created_at                           DateTime             @default(now()) @db.DateTime(0)
+  updated_at                           DateTime             @default(now()) @db.DateTime(0)
+  rel_fk_workspaces_project            projects             @relation("fk_workspaces_project", fields: [project_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_workspaces_project")
+  back_fk_workspace_versions_workspace workspace_versions[] @relation("fk_workspace_versions_workspace")
+  back_fk_simulation_runs_workspace    simulation_runs[]    @relation("fk_simulation_runs_workspace")
+
+  @@unique([project_id], map: "uq_workspaces_project")
+}
+
+model workspace_versions {
+  id                                  String     @id @db.Char(36)
+  workspace_id                        String     @db.Char(36)
+  version                             Int        @db.UnsignedInt
+  blocks_json                         String     @db.LongText
+  created_at                          DateTime   @default(now()) @db.DateTime(0)
+  rel_fk_workspace_versions_workspace workspaces @relation("fk_workspace_versions_workspace", fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_workspace_versions_workspace")
+
+  @@unique([workspace_id, version], map: "uq_workspace_versions_number")
+}
+
+model simulation_runs {
+  id                               String     @id @db.Char(36)
+  workspace_id                     String     @db.Char(36)
+  requested_by                     String     @db.Char(36)
+  workspace_version                Int        @db.UnsignedInt
+  provider                         String     @default("deterministic") @db.VarChar(24)
+  status                           String     @default("queued") @db.VarChar(16)
+  seed                             Int        @db.UnsignedInt
+  parameters_json                  String     @db.LongText
+  metrics_json                     String?    @db.LongText
+  accuracy                         Decimal?   @db.Decimal(5, 4)
+  loss                             Decimal?   @db.Decimal(10, 6)
+  started_at                       DateTime?  @db.DateTime(0)
+  finished_at                      DateTime?  @db.DateTime(0)
+  created_at                       DateTime   @default(now()) @db.DateTime(0)
+  rel_fk_simulation_runs_workspace workspaces @relation("fk_simulation_runs_workspace", fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_simulation_runs_workspace")
+  rel_fk_simulation_runs_user      users      @relation("fk_simulation_runs_user", fields: [requested_by], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_simulation_runs_user")
+
+  @@index([workspace_id, created_at], map: "ix_simulation_runs_workspace_created")
+  @@index([requested_by, created_at], map: "ix_simulation_runs_user_created")
+}
+
+model lesson_progress {
+  id                             String    @id @db.Char(36)
+  student_id                     String    @db.Char(36)
+  lesson_id                      String    @db.Char(36)
+  status                         String    @default("not_started") @db.VarChar(16)
+  completed_sections             Int       @default(0) @db.UnsignedTinyInt
+  progress_percent               Int       @default(0) @db.UnsignedTinyInt
+  last_opened_at                 DateTime? @db.DateTime(0)
+  completed_at                   DateTime? @db.DateTime(0)
+  updated_at                     DateTime  @default(now()) @db.DateTime(0)
+  rel_fk_lesson_progress_student users     @relation("fk_lesson_progress_student", fields: [student_id], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_lesson_progress_student")
+  rel_fk_lesson_progress_lesson  lessons   @relation("fk_lesson_progress_lesson", fields: [lesson_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_lesson_progress_lesson")
+
+  @@unique([student_id, lesson_id], map: "uq_lesson_progress_student_lesson")
+  @@index([lesson_id], map: "ix_lesson_progress_lesson")
+}
+
+model challenges {
+  id                                     String                 @id @db.Char(36)
+  course_week_id                         String                 @db.Char(36)
+  level_id                               Int                    @db.UnsignedSmallInt
+  title                                  String                 @db.VarChar(180)
+  challenge_type                         String                 @db.VarChar(24)
+  config_json                            String                 @db.LongText
+  time_limit_seconds                     Int?                   @db.UnsignedInt
+  max_attempts                           Int                    @default(3) @db.UnsignedTinyInt
+  max_score                              Decimal                @default(100.00) @db.Decimal(6, 2)
+  status                                 String                 @default("draft") @db.VarChar(16)
+  created_at                             DateTime               @default(now()) @db.DateTime(0)
+  rel_fk_challenges_week                 course_weeks           @relation("fk_challenges_week", fields: [course_week_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_challenges_week")
+  rel_fk_challenges_level                levels                 @relation("fk_challenges_level", fields: [level_id], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_challenges_level")
+  back_fk_classroom_challenges_challenge classroom_challenges[] @relation("fk_classroom_challenges_challenge")
+
+  @@unique([course_week_id, level_id], map: "uq_challenges_week_level")
+  @@index([level_id], map: "ix_challenges_level")
+}
+
+model classroom_challenges {
+  id                                    String               @id @db.Char(36)
+  classroom_id                          String               @db.Char(36)
+  challenge_id                          String               @db.Char(36)
+  open_at                               DateTime             @db.DateTime(0)
+  close_at                              DateTime             @db.DateTime(0)
+  created_at                            DateTime             @default(now()) @db.DateTime(0)
+  rel_fk_classroom_challenges_classroom classrooms           @relation("fk_classroom_challenges_classroom", fields: [classroom_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_classroom_challenges_classroom")
+  rel_fk_classroom_challenges_challenge challenges           @relation("fk_classroom_challenges_challenge", fields: [challenge_id], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_classroom_challenges_challenge")
+  back_fk_challenge_attempts_assignment challenge_attempts[] @relation("fk_challenge_attempts_assignment")
+
+  @@unique([classroom_id, challenge_id], map: "uq_classroom_challenges_pair")
+  @@index([challenge_id], map: "ix_classroom_challenges_challenge")
+  @@index([classroom_id, open_at, close_at], map: "ix_classroom_challenges_window")
+}
+
+model challenge_attempts {
+  id                                   String               @id @db.Char(36)
+  classroom_challenge_id               String               @db.Char(36)
+  student_id                           String               @db.Char(36)
+  attempt_no                           Int                  @db.UnsignedTinyInt
+  status                               String               @default("in_progress") @db.VarChar(16)
+  started_at                           DateTime             @db.DateTime(0)
+  expires_at                           DateTime             @db.DateTime(0)
+  submitted_at                         DateTime?            @db.DateTime(0)
+  score                                Decimal?             @db.Decimal(6, 2)
+  answer_json                          String?              @db.LongText
+  rel_fk_challenge_attempts_assignment classroom_challenges @relation("fk_challenge_attempts_assignment", fields: [classroom_challenge_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_challenge_attempts_assignment")
+  rel_fk_challenge_attempts_student    users                @relation("fk_challenge_attempts_student", fields: [student_id], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_challenge_attempts_student")
+
+  @@unique([classroom_challenge_id, student_id, attempt_no], map: "uq_challenge_attempts_number")
+  @@index([student_id, status], map: "ix_challenge_attempts_student_status")
+}
+
+model audit_logs {
+  id                      String   @id @db.Char(36)
+  actor_id                String?  @db.Char(36)
+  action                  String   @db.VarChar(80)
+  entity_type             String   @db.VarChar(64)
+  entity_id               String?  @db.Char(36)
+  ip_address              String?  @db.VarChar(45)
+  metadata_json           String?  @db.LongText
+  occurred_at             DateTime @default(now()) @db.DateTime(0)
+  rel_fk_audit_logs_actor users?   @relation("fk_audit_logs_actor", fields: [actor_id], references: [id], onDelete: SetNull, onUpdate: Restrict, map: "fk_audit_logs_actor")
+
+  @@index([actor_id, occurred_at], map: "ix_audit_logs_actor_date")
+  @@index([entity_type, entity_id, occurred_at], map: "ix_audit_logs_entity_date")
+  @@index([occurred_at], map: "ix_audit_logs_occurred")
+}
