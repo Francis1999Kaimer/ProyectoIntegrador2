@@ -1,37 +1,31 @@
 # Hoja de ruta — APF2 (12 hitos)
 
-El proyecto busca una **primera versión verificable** (aproximadamente la mitad del producto final). Los estados describen trabajo confirmado en GitHub y no equivalen a pruebas en el PC o Plesk.
+El producto busca un primer despliegue verificable, no la totalidad del currículo. El estado **pendiente de prueba local** implica que la base de datos del equipo todavía no ha sido validada.
 
 | Nº | Hito | Estado |
 |---|---|---|
-| 1 | Alinear arquitectura, README, entorno MySQL/MariaDB y Plesk | **Completado (documentación/configuración)** |
-| 2 | Diseñar modelo físico de BD, SQL, seed, relaciones e índices | Pendiente |
-| 3 | Inicializar Backend NestJS, Prisma, configuración y health check | Pendiente |
-| 4 | Implementar Repository Pattern y diagrama de clases | Pendiente |
-| 5 | Implementar login, JWT, roles y permisos | Pendiente |
-| 6 | Implementar APIs reales: alumnos, salones, proyectos, workspaces, progreso | Pendiente |
-| 7 | Conectar frontend existente a backend y sustituir mocks esenciales | Pendiente |
+| 1 | Alinear arquitectura, README, entorno MySQL/MariaDB y Plesk | Completado |
+| 2 | Modelo físico de BD, SQL, seed, relaciones e índices | **Implementado en repositorio; pendiente de prueba en MySQL local** |
+| 3 | Backend NestJS, Prisma, configuración y health check | Pendiente |
+| 4 | Repository Pattern y diagrama de clases | Pendiente |
+| 5 | Login, JWT, roles y permisos | Pendiente |
+| 6 | APIs reales: alumnos, salones, proyectos, workspaces, progreso | Pendiente |
+| 7 | Conectar frontend actual con backend y reemplazar mocks esenciales | Pendiente |
 | 8 | Persistir editor React Flow y resultados de entrenamiento pedagógico | Pendiente |
-| 9 | Implementar validaciones, controles de seguridad y auditoría | Pendiente |
-| 10 | Preparar documentación APF2: BD, replicación, cifrado, pruebas y despliegue | Pendiente |
-| 11 | Implementar y ejecutar pruebas unitarias/integración/seguridad con evidencias | Pendiente |
-| 12 | Preparar y ejecutar despliegue Plesk + MariaDB, validar en cloud | Pendiente |
+| 9 | Validaciones, controles de seguridad y auditoría | Pendiente |
+| 10 | Documentación APF2: BD, replicación, cifrado, pruebas y despliegue | Pendiente |
+| 11 | Pruebas unitarias/integración/seguridad con evidencias | Pendiente |
+| 12 | Despliegue Plesk + MariaDB y validación en cloud | Pendiente |
 
 ## Requisitos transversales
 
-- Levantar el **100 % de las observaciones del APF1** documentadas por el profesor.
-- Mantener la aplicación compilable tras cada hito.
-- Trabajar mediante rama, PR y merge; no publicar secretos.
-- El modelo físico y el script SQL deben mantenerse consistentes.
-- El informe de replicación debe distinguir la arquitectura propuesta de la efectivamente configurada.
-- Adjuntar capturas reales de pruebas, seguridad y Plesk, sin simular evidencias.
+- Levantar el **100 % de las observaciones APF1** aportadas por el profesor.
+- Mantener frontend funcional y evitar cambios abruptos.
+- No incluir secretos ni contraseñas en GitHub.
+- Mantener siempre sincronizados SQL, modelo físico y documentación.
+- No afirmar replicación, backups, despliegue ni ejecuciones de MySQL sin evidencias reales.
+- Para cada prueba que deba ejecutarse en Windows, indicar primero `git pull origin main` y después los comandos correspondientes.
 
-## Alcance de este PR (hito 1)
+## Hito 2
 
-- Documentar la arquitectura APF2 centrada en NestJS y MySQL/MariaDB.
-- Retirar referencias a PostgreSQL/Supabase como stack activo.
-- Documentar `aiblockstudio` local en 3306 y la alternativa Docker en 3307.
-- Registrar decisiones, límites del alcance y secuencia de hitos.
-- Mantener el frontend existente sin cambiar su comportamiento.
-
-**El hito 1 no crea tablas SQL, no levanta un backend y no despliega nada.** Esas actividades pertenecen a los hitos siguientes.
+Se añade `database/schema.sql`, `database/seed.sql`, `database/verify.sql`, `database/check_model.py`, `database/README.md` y `docs/DER.md`. Se preserva el frontend. Los comandos de prueba en la computadora figuran en `database/README.md`. El diseño queda definido, pero su aceptación final depende de importar y verificar el SQL en MySQL y luego repetir en MariaDB de Plesk.
