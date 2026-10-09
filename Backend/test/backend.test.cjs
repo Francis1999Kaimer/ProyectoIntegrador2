@@ -13,6 +13,7 @@ test('configuration rejects missing URL, invalid port, non-HTTP and path origins
   assert.throws(() => validateEnvironment({ ...good, CORS_ORIGINS: 'javascript:alert(1)' }));
   assert.throws(() => validateEnvironment({ ...good, CORS_ORIGINS: 'http://localhost:5173/path' }));
   assert.equal(validateEnvironment(good).PORT, 3000);
+  assert.ok(validateEnvironment({ ...good, NODE_ENV: 'production' }).CORS_ORIGINS.includes('https://proyecto-integrador2-two.vercel.app'));
 });
 test('health failure returns generic 503 without driver secrets', async () => {
   const controller = new HealthController({ $queryRaw: async () => { throw new Error('mysql://secret'); } });
