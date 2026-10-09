@@ -18,6 +18,11 @@ No uses rutas, barras finales, credenciales ni comodines. El backend también in
 
 ## Vercel
 
+El archivo `Frontend/vercel.json` reescribe las rutas de la SPA hacia `index.html`.
+Por ello, enlaces directos como `/proyectos`, `/inicio` o
+`/entrenamiento?project=...` se resuelven en el navegador y no devuelven 404.
+Un archivo `.htaccess` solo cumple esta función en Apache; Vercel no lo utiliza.
+
 No es obligatorio definir una variable porque el frontend usa Railway como destino de producción. Si se desea dejar explícito, crea:
 
 ```text
