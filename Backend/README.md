@@ -1,25 +1,24 @@
-# Backend
+# Backend — AI Blocks Studio
 
-API central y capa de orquestación de AI Blocks Studio.
+**Estado:** pendiente de implementación (hito 3 de APF2). Esta carpeta no contiene todavía una API ejecutable.
 
-## Responsabilidades previstas
+## Stack objetivo
 
-- Autenticación y autorización.
-- Usuarios y proyectos.
-- Persistencia de pipelines visuales.
-- Gestión de datasets y artefactos.
-- Creación y seguimiento de ejecuciones.
-- Publicación de trabajos para ML-Service.
-- WebSocket para progreso en tiempo real.
-- Resultados, evaluaciones y predicciones.
+- NestJS + TypeScript.
+- Prisma ORM con proveedor `mysql` (compatible con MySQL local y MariaDB objetivo, sujeto a pruebas de versión).
+- Repository Pattern: Controller → Service → Repository Interface → Prisma Repository.
+- JWT, hash de contraseñas, Guards por rol, validación, rate limiting y logs de auditoría.
+- BD de desarrollo: `aiblockstudio` en `127.0.0.1:3306`.
+- BD de producción: MariaDB administrada desde Plesk.
 
-## Stack propuesto
+## Endpoints previstos APF2
 
-- NestJS
-- TypeScript
-- Prisma
-- PostgreSQL
-- Redis
-- MinIO / S3
+- Autenticación y sesión por rol.
+- Gestión mínima de salones, alumnos y proyectos.
+- Guardar y recuperar workspaces del editor de bloques.
+- Progreso y ejecuciones pedagógicas (resultados persistidos).
+- `/health` para pruebas y monitoreo.
 
-El backend se implementará después de validar el UX/UI principal del frontend.
+No incluir credenciales en el código ni subir archivos `.env`. Ver plantilla raíz `.env.example`, decisiones `docs/DECISIONES.md` y cronograma `docs/APF2_HITOS.md`.
+
+Redis, MinIO y el ML-Service Python quedan diferidos; no son dependencias del flujo básico de APF2.
