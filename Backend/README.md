@@ -1,10 +1,10 @@
-# Backend — AI Blocks Studio (APF2 hito 3)
+# Backend — AI Blocks Studio (APF2 hitos 3–4)
 
 API NestJS 11 + TypeScript + Prisma 6.19 (versión fijada para este hito).
 Requiere Node 22.12+ (línea 22) o Node 24. Ejecutar desde `Backend/`.
 El único endpoint de esta entrega es `GET /health`: HTTP 200 si MySQL responde a SELECT 1,
 HTTP 503 si pierde conexión durante la ejecución. Si la conexión inicial falla, la API no inicia.
-Login, repositorios y APIs de negocio pertenecen a los hitos 4–6.
+Repositorios y ProjectService implementados en el hito 4. Login y APIs HTTP de negocio pertenecen a los hitos 5–6.
 
 ## Preparación y pruebas en Windows
 
@@ -77,3 +77,10 @@ Referencia: https://www.prisma.io/docs/orm/v6/prisma-migrate/workflows/baselinin
 Compartir la salida de validate, generate, build, test, baseline, status y /health, sin .env.
 La compilación y las pruebas con dobles de BD no sustituyen la conexión a tu MySQL 8.0.39.
 Validación MariaDB/Plesk permanece pendiente.
+
+## Repository Pattern — hito 4
+
+Ver [contratos, diagrama y pruebas](../docs/REPOSITORY_PATTERN.md).
+Después de git pull origin main: npm ci, npm run build, npm test y
+npm run test:repositories:db. La última prueba consulta los seis repositorios con tu
+MySQL real sin escribir registros. Mantener el .env existente; no recrear la BD.

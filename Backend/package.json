@@ -15,7 +15,8 @@
     "prisma:baseline": "node scripts/baseline.cjs",
     "prisma:status": "prisma migrate status",
     "prisma:deploy": "prisma migrate deploy",
-    "test": "node --test test/*.test.cjs"
+    "test": "node --test test/*.test.cjs",
+    "test:repositories:db": "node scripts/repositories-smoke.cjs"
   },
   "dependencies": {
     "@nestjs/common": "11.1.6",
