@@ -6,8 +6,9 @@ const { checkSchema } = require('../scripts/check-schema.cjs');
 const contract = require('../scripts/schema-contract.json');
 
 test('configuration rejects missing URL, invalid port, non-HTTP and path origins', () => {
-  const good = { DATABASE_URL: 'mysql://test:test@localhost:3306/test' };
+  const good = { DATABASE_URL: 'mysql://test:test@localhost:3306/test', JWT_SECRET: 'test-only-secret-32-characters-long' };
   assert.throws(() => validateEnvironment({}));
+  assert.throws(() => validateEnvironment({ ...good, JWT_SECRET: 'short' }));
   assert.throws(() => validateEnvironment({ ...good, PORT: 0 }));
   assert.throws(() => validateEnvironment({ ...good, CORS_ORIGINS: 'javascript:alert(1)' }));
   assert.throws(() => validateEnvironment({ ...good, CORS_ORIGINS: 'http://localhost:5173/path' }));

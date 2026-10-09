@@ -7,8 +7,8 @@ El producto busca un primer despliegue verificable, no la totalidad del currícu
 | 1 | Alinear arquitectura, README, entorno MySQL/MariaDB y Plesk | Completado |
 | 2 | Modelo físico de BD, SQL, seed, relaciones e índices | Pruebas locales superadas en MySQL 8.0.39; MariaDB pendiente |
 | 3 | Backend NestJS, Prisma, configuración y health check | Pruebas locales superadas: baseline 0_init, estado actualizado y health ok/up |
-| 4 | Repository Pattern y diagrama de clases | Implementado; pendiente de prueba local de repositorios |
-| 5 | Login, JWT, roles y permisos | Pendiente |
+| 4 | Repository Pattern y diagrama de clases | Pruebas locales superadas: 11 tests, seis repositorios en MySQL y health ok/up |
+| 5 | Login, JWT, roles y permisos | Implementado; pendiente de prueba local de autenticación |
 | 6 | APIs reales: alumnos, salones, proyectos, workspaces, progreso | Pendiente |
 | 7 | Conectar frontend actual con backend y reemplazar mocks esenciales | Pendiente |
 | 8 | Persistir editor React Flow y resultados de entrenamiento pedagógico | Pendiente |
@@ -57,3 +57,18 @@ npm run test:repositories:db debe ejecutarse en el PC después de git pull origi
 Aceptación del hito 3: evidencia del usuario del 9 de octubre de 2026 confirma introspección,
 baseline aplicado sin recrear tablas, Database schema is up to date y GET /health ok/up.
 Mantener pendiente la revisión de vulnerabilidades reportadas por npm ci.
+
+## Hito 5
+
+Login contra users con bcrypt, JWT HS256 de 15 minutos, Guards globales, roles desde BD,
+validación DTO, límites de login/cambio de contraseña y cambio que invalida JWT previos.
+Cuentas demo creadas explícitamente en el PC con contraseña elegida localmente; sin claves
+fijas ni migraciones de esquema. Endpoints y comandos en [AUTENTICACION.md](AUTENTICACION.md).
+
+Se corrige el flujo de generación Prisma: prebuild regenera el cliente, pretest compila,
+y TypeScript no emite si hay errores. Hito 4 validado por el usuario el 9 de octubre de 2026:
+build, 11 tests, seis repositorios consultando MySQL, NestJS y health ok/up.
+
+Auditoría de dependencias en hito 5: actualizaciones compatibles de NestJS reducen
+12 alertas a 4 en la cadena de Prisma; npm audit --omit=dev también reporta esas cuatro.
+Las alertas se mantienen pendientes de evaluación en hito 9.

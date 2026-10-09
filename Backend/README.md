@@ -1,10 +1,11 @@
-# Backend — AI Blocks Studio (APF2 hitos 3–4)
+# Backend — AI Blocks Studio (APF2 hitos 3–5)
 
 API NestJS 11 + TypeScript + Prisma 6.19 (versión fijada para este hito).
 Requiere Node 22.12+ (línea 22) o Node 24. Ejecutar desde `Backend/`.
-El único endpoint de esta entrega es `GET /health`: HTTP 200 si MySQL responde a SELECT 1,
+El endpoint público de monitoreo es `GET /health`: HTTP 200 si MySQL responde a SELECT 1,
 HTTP 503 si pierde conexión durante la ejecución. Si la conexión inicial falla, la API no inicia.
-Repositorios y ProjectService implementados en el hito 4. Login y APIs HTTP de negocio pertenecen a los hitos 5–6.
+Repositorios y ProjectService implementados en el hito 4. Login, JWT, Guards y cambio de contraseña en el hito 5. APIs de negocio en el hito 6.
+Para instalar esta versión seguir primero [AUTENTICACION.md](../docs/AUTENTICACION.md): requiere JWT_SECRET nuevo en el .env existente.
 
 ## Preparación y pruebas en Windows
 
@@ -81,6 +82,14 @@ Validación MariaDB/Plesk permanece pendiente.
 ## Repository Pattern — hito 4
 
 Ver [contratos, diagrama y pruebas](../docs/REPOSITORY_PATTERN.md).
-Después de git pull origin main: npm ci, npm run build, npm test y
+Después de git pull origin main: npm ci, npm run prisma:generate, npm run build, npm test y
 npm run test:repositories:db. La última prueba consulta los seis repositorios con tu
 MySQL real sin escribir registros. Mantener el .env existente; no recrear la BD.
+
+## Autenticación — hito 5
+
+Ver [endpoints, cuentas sintéticas y pruebas](../docs/AUTENTICACION.md).
+Mantener DATABASE_URL del entorno funcional y añadir JWT_SECRET generado localmente.
+npm test compila y regenera Prisma antes de probar; npm run build también regenera el cliente.
+La creación de cuentas demo es una operación local explícita; no hay usuarios ni contraseñas
+fijas en el SQL, repositorio o CI. auth:test-demo consulta el backend iniciado en otra ventana.
