@@ -10,8 +10,9 @@ export function validateEnvironment(env: Record<string, unknown>) {
   const nodeEnv = String(env.NODE_ENV ?? 'development');
   if (!['development','test','production'].includes(nodeEnv)) throw new Error('NODE_ENV inválido.');
   const configuredOrigins = String(env.CORS_ORIGINS ?? 'http://localhost:5173').split(',').map(v => v.trim()).filter(Boolean);
-  // Public production frontend. Local origins remain controlled by CORS_ORIGINS.
-  const origins = [...new Set([...configuredOrigins, ...(nodeEnv === 'production' ? ['https://proyecto-integrador2-two.vercel.app'] : [])])];
+  // Public frontend. Keep this exact deployed origin available even when a host
+  // does not set NODE_ENV (a common deployment-platform default).
+  const origins = [...new Set([...configuredOrigins, 'https://proyecto-integrador2-two.vercel.app'])];
   for (const origin of origins) {
     let parsedOrigin: URL;
     try { parsedOrigin = new URL(origin); } catch { throw new Error('CORS_ORIGINS contiene un origen inválido.'); }

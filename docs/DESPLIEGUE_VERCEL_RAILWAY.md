@@ -14,7 +14,7 @@ Configura la variable `CORS_ORIGINS` con los orígenes completos separados por c
 CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,https://proyecto-integrador2-two.vercel.app
 ```
 
-No uses rutas, barras finales, credenciales ni comodines. El backend también incorpora este dominio exacto cuando corre en producción. Si Vercel cambia el dominio de producción, actualiza el código y la variable, y redespliega Railway.
+No uses rutas, barras finales, credenciales ni comodines. El backend también incorpora este dominio exacto aunque Railway no defina `NODE_ENV`. Si Vercel cambia el dominio de producción, actualiza el código y la variable, y redespliega Railway.
 
 ## Vercel
 
