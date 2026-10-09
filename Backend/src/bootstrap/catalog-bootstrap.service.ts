@@ -1,4 +1,6 @@
 import { Injectable, OnApplicationBootstrap } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
+import { PasswordService } from '../auth/password.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 const courseSlug = 'ia-bloques-24';
@@ -32,12 +34,20 @@ const weeks = [
 
 @Injectable()
 export class CatalogBootstrapService implements OnApplicationBootstrap {
-  constructor(private readonly db: PrismaService) {}
+  constructor(private readonly db: PrismaService, private readonly passwords: PasswordService) {}
   async onApplicationBootstrap() {
     // Las pruebas sustituyen Prisma por repositorios en memoria: no deben tocar
     // una base real ni exigir que los dobles implementen el catálogo.
     if (process.env.NODE_ENV === 'test') return;
+    const demoHash = await this.passwords.hash('DemoLocal2026!');
     await this.db.$transaction(async tx => {
+      // Cuentas exclusivamente demostrativas. Se insertan solo si faltan y no
+      // se sobrescriben las cuentas que luego gestione el administrador.
+      await tx.users.createMany({ data: [
+        { id: randomUUID(), username: 'aiblocks_demo_student', display_name: 'Demo student', password_hash: demoHash, role: 'student', status: 'active', must_change_password: false },
+        { id: randomUUID(), username: 'aiblocks_demo_teacher', display_name: 'Demo teacher', password_hash: demoHash, role: 'teacher', status: 'active', must_change_password: false },
+        { id: randomUUID(), username: 'aiblocks_demo_admin', display_name: 'Demo admin', password_hash: demoHash, role: 'admin', status: 'active', must_change_password: false }
+      ], skipDuplicates: true });
       await tx.levels.createMany({ data: [
         { slug: 'exploradores', name: 'Exploradores', min_age: 5, max_age: 6 },
         { slug: 'aventureros', name: 'Aventureros', min_age: 7, max_age: 10 },

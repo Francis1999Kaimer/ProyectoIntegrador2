@@ -32,6 +32,6 @@ import { JwtAuthGuard, RolesGuard } from './auth.guards';
       validationError: { target: false, value: false }
     }) }
   ],
-  exports: [AuthService]
+  exports: [AuthService, PasswordService]
 })
 export class AuthModule {}
