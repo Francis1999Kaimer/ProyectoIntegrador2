@@ -20,3 +20,7 @@ uploads/
 *.log
 Thumbs.db
 .DS_Store
+
+
+# Frontend test bundles
+Frontend/.test-build/

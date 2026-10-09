@@ -1,3 +1,8 @@
+import { useRef, useState } from 'react'
+import { api } from '../api/http'
+import { typeCodes, type Classroom, type Project } from '../api/types'
+import { useResource } from '../api/useResource'
+import { ApiMessage, Header, workflow } from './AppShell'
 import { ArrowRight, BarChart3, BrainCircuit, Database, FileText, Image as ImageIcon, Network, Sparkles, Target, TrendingUp } from 'lucide-react'
 import { Link, useNavigate } from 'react-router'
 import { useProjectStore, type ProjectLevel } from '../store/project'
@@ -84,17 +89,25 @@ const levelCopy: Record<ProjectLevel, { label: string; text: string; complexity:
 
 export default function CreateProjectDynamic() {
   const navigate = useNavigate()
-  const { name, type, level, setName, setType, setLevel } = useProjectStore()
+  const { name, type, level, setName, setType, setLevel, select } = useProjectStore()
+  const rooms = useResource<Classroom[]>('/classrooms?limit=100')
+  const [classroom,setClassroom] = useState(''), [error,setError] = useState(''), [busy,setBusy] = useState(false)
+  const sending = useRef(false)
+  async function create() {
+    if (sending.current || !name.trim()) return
+    sending.current = true; setBusy(true); setError('')
+    try {
+      const project = await api.request<Project>('/projects',{method:'POST',body:{title:name.trim(),project_type:typeCodes[type]??'blocks',...(classroom?{classroom_id:classroom}:{})}})
+      select(project); navigate(workflow('/dataset',project.id))
+    } catch(e) { setError((e as Error).message) }
+    finally { sending.current = false; setBusy(false) }
+  }
   const selected = presets[type] ?? presets['Clasificación de imágenes']
   const Icon = selected.icon
   const levels: ProjectLevel[] = ['Principiante', 'Intermedio', 'Avanzado']
 
   return <>
-    <div className="app-header wizard-shell-header">
-      <Link to="/" className="brand"><span className="brand-mark"><BrainCircuit size={21}/></span><span>AI Blocks <strong>Studio</strong></span></Link>
-      <div className="wizard-context"><span>Nuevo proyecto</span><b>{selected.title}</b></div>
-      <Link className="secondary button-link" to="/proyectos">Mis proyectos</Link>
-    </div>
+    <Header/>
 
     <main className="page wizard-page">
       <Link className="back-link" to="/">← Volver al inicio</Link>
@@ -108,8 +121,10 @@ export default function CreateProjectDynamic() {
           <h1>¿Qué quieres construir?</h1>
           <p className="wizard-intro">Elige el tipo de problema. La experiencia, los bloques y las recomendaciones cambiarán automáticamente.</p>
 
-          <label>Nombre del proyecto<input value={name} onChange={e => setName(e.target.value)} placeholder="Ej. Detector de residuos reciclables" /></label>
+          <label>Nombre del proyecto<input required maxLength={180} value={name} onChange={e => setName(e.target.value)} placeholder="Ej. Detector de residuos reciclables" /></label>
 
+          <label>Salón (opcional)<select value={classroom} onChange={e=>setClassroom(e.target.value)}><option value="">Proyecto personal</option>{rooms.data?.filter(r=>r.status==='active').map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select></label>
+          <ApiMessage {...rooms} retry={rooms.reload}/>
           <label>Tipo de proyecto</label>
           <div className="project-type-selector">
             {Object.entries(presets).map(([key, preset]) => {
@@ -132,14 +147,15 @@ export default function CreateProjectDynamic() {
             </div>
           </div>
 
-          <label>Nivel de aprendizaje</label>
+          <label>Nivel de guía para esta sesión</label>
           <div className="level-cards">
             {levels.map(item => <button key={item} onClick={() => setLevel(item)} className={level === item ? 'level-card selected' : 'level-card'}>
               <strong>{item}</strong><span>{levelCopy[item].label}</span><small>{levelCopy[item].text}</small>
             </button>)}
           </div>
 
-          <div className="actions wizard-actions"><Link className="secondary button-link" to="/">Cancelar</Link><button className="primary" onClick={() => navigate('/dataset')}>Configurar datos <ArrowRight size={17}/></button></div>
+          <ApiMessage error={error}/>
+          <div className="actions wizard-actions"><Link className="secondary button-link" to="/">Cancelar</Link><button className="primary" disabled={busy||!name.trim()} onClick={() => void create()}>{busy ? 'Creando…' : 'Crear y continuar'} <ArrowRight size={17}/></button></div>
         </section>
 
         <aside className="wizard-side">
