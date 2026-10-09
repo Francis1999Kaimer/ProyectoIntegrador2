@@ -20,7 +20,7 @@ COLUMN = re.compile(
 )
 FK = re.compile(r"FOREIGN KEY \((\w+)\) REFERENCES (\w+)\((\w+)\)")
 ENTITY = re.compile(r"^  (\w+) \{\n(.*?)^  \}", re.MULTILINE | re.DOTALL)
-ATTR = re.compile(r"^    \w+ (\w+)(?:\s+.*)?$", re.MULTILINE)
+ATTR = re.compile(r"^    [A-Z][A-Z0-9]* ([a-z_][a-z_0-9]*)(?:[ \t]+[^\n]*)?$", re.MULTILINE)
 REL = re.compile(r'^  (\w+) \|\|--(?:o\{|o\|) (\w+) : "(\w+)"$', re.MULTILINE)
 
 errors = []
