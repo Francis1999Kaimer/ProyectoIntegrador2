@@ -85,6 +85,7 @@ Si se prefiere una base aislada para pruebas, `docker-compose.yml` incluye un pe
 - [Arquitectura](docs/architecture.md)
 - [Decisiones técnicas](docs/DECISIONES.md)
 - [Flujo de entrenamiento (pasos 0 a 6)](docs/FLUJO_ENTRENAMIENTO.md)
+- [Salones, cuentas y tareas](docs/SALONES_Y_TAREAS.md)
 - [Los 12 hitos APF2](docs/APF2_HITOS.md)
 - [Plan UX original](docs/frontend-ux-plan.md)
 - [Auditoría responsive](docs/frontend-responsive-audit.md)

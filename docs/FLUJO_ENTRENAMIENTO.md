@@ -19,7 +19,8 @@ Al abrir un proyecto (inicio o detalle) se usa `/crear/continuar`, que lleva al 
 - **Reemplazo del ZIP:** permitido mientras el dataset no se haya confirmado con «Siguiente · Paso 2». Al confirmar, el dataset queda fijo. La única excepción es que no alcance para entrenar: entonces el paso 2 ofrece «Reemplazar ZIP», y al reemplazarlo se vuelve al paso 1.
 - **Mínimo para entrenar:** 10 ejemplos por categoría (el paso 1 sigue aceptando desde 2). Con menos, el paso 2 bloquea el avance, y el backend rechaza la preparación, la configuración y el entrenamiento (409). Se recomiendan 20 o más.
 - **División:** 10, 20 (recomendado) o 30 % de prueba por categoría, con `max(1, round(n × p / 100))` ejemplos. Se elige al azar con una semilla guardada, así que el conjunto de prueba siempre es el mismo. Queda fija con el primer entrenamiento.
-- **Permisos:** solo el propietario carga, confirma, configura y entrena. El docente del salón y el administrador consultan en solo lectura. Un proyecto archivado es de solo lectura.
+- **Permisos:** solo el propietario carga, confirma, configura y entrena. El docente del salón y el administrador consultan en solo lectura. Un proyecto archivado, o de un salón archivado, es de solo lectura.
+- **Tareas:** un proyecto del salón se puede entregar en una tarea; ver [SALONES_Y_TAREAS.md](SALONES_Y_TAREAS.md).
 - **Historial:** cada entrenamiento se guarda con su configuración, hardware, métricas por época y resultados de prueba. Solo se conserva el modelo del último entrenamiento.
 
 ## Preparación por tipo
