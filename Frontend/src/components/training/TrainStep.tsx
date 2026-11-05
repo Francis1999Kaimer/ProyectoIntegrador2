@@ -99,7 +99,7 @@ function TrainRunner({ projectId, project, state, setState, setLocked }: StepCon
         <h2>{running ? phases[progress?.phase ?? 'prepare'] + '…' : saved ? `Entrenamiento ${saved.run_number} guardado` : 'Entrenamiento'}</h2>
         {state.editable
           ? <button className="primary train-button" disabled={running} onClick={() => void run()}><Play size={18} />{running ? 'Entrenando…' : `Entrenar ${config.epochs} épocas`}</button>
-          : <p>Solo el propietario puede entrenar este proyecto.</p>}
+          : <p>{state.owner ? 'El proyecto o su salón está archivado: queda en solo lectura.' : 'Solo el propietario puede entrenar este proyecto.'}</p>}
         {(running || progress) && <>
           <div className="progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(fraction * 100)} aria-label="Progreso del entrenamiento"><div className="progress-fill" style={{ width: `${fraction * 100}%` }} /></div>
           <p role="status" className="dataset-progress">{progress?.phase === 'prepare' ? `Preparando ${progress.done} de ${progress.total} ejemplos` : progress?.phase === 'train' ? `Época ${progress.done} de ${progress.total}` : progress ? phases[progress.phase] : 'Iniciando TensorFlow.js'} · {formatDuration(elapsed)}</p>

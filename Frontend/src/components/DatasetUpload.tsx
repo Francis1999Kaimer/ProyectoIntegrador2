@@ -70,7 +70,7 @@ export default function DatasetUpload() {
   if (project.loading || training.loading || !project.data || !state) return <Page><ApiMessage loading /></Page>
   if (!type) return <Page><section className="panel empty-state"><h1>Tipo de proyecto no compatible</h1><Link to="/proyectos">Volver a proyectos</Link></section></Page>
   const owner = user?.id === project.data.owner_id
-  const canEdit = owner && project.data.status !== 'archived'
+  const canEdit = owner && state.editable
   const showUpload = !existing || (replacing && existing.can_replace)
   const locked = busy || saving || !canEdit || (!!existing && !existing.can_replace)
   const canContinue = !!existing && !busy && !saving && !summary && (state.editable || state.step >= 2)
@@ -97,7 +97,7 @@ export default function DatasetUpload() {
           </>}
           {existing && !showUpload && existing.can_replace && <button type="button" className="secondary" onClick={() => setReplacing(true)}>Reemplazar ZIP</button>}
           {!owner && <p>Solo el propietario puede cargar el dataset.</p>}
-          {owner && !canEdit && <p>El proyecto está archivado. Reábrelo para cargar datos.</p>}
+          {owner && !canEdit && <p>{project.data.status === 'archived' ? 'El proyecto está archivado. Reábrelo para cargar datos.' : 'El salón del proyecto está archivado: el proyecto queda en solo lectura.'}</p>}
           {busy && <p role="status" className="dataset-progress">Revisando el ZIP y sus archivos…</p>}
           {error && <div role="alert" className="api-error"><p>{error}</p><button className="secondary" onClick={() => training.reload()}>Actualizar estado</button></div>}
         </section>

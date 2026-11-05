@@ -3,7 +3,7 @@
 .task-create { margin: 8px 0 16px; border: 1px solid #e0e0e0; background: #fff; }
 .task-create > summary, details.resource-detail > summary { cursor: pointer; padding: 12px 14px; font-weight: 600; color: #0f62fe; display: flex; align-items: center; gap: 6px; }
 .task-create > .api-form { padding: 0 14px 14px; }
-.task-form textarea, .api-form textarea { width: 100%; padding: 10px; border: 1px solid #8d8d8d; background: #f4f4f4; font: inherit; resize: vertical; }
+.task-form textarea, .api-form textarea { width: 100%; padding: 12px; border: 1px solid #c6c6c6; border-radius: 6px; background: #fff; color: #161616; font: inherit; resize: vertical; }
 .task-form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .field-note { font-size: 13px; color: #525252; }
 .check-label span { display: flex; align-items: flex-start; gap: 8px; font-weight: 400; }
@@ -35,7 +35,7 @@
 .submission-list .button-link { justify-self: start; }
 .grade-form { display: grid; grid-template-columns: minmax(130px, 180px) minmax(0, 1fr) auto; gap: 10px; align-items: end; }
 .grade-form label { display: grid; gap: 4px; font-size: 13px; font-weight: 600; }
-.grade-form input { padding: 9px 10px; border: 1px solid #8d8d8d; background: #f4f4f4; font: inherit; }
+.grade-form input { padding: 10px 12px; border: 1px solid #c6c6c6; border-radius: 6px; background: #fff; color: #161616; font: inherit; }
 .grade-form .api-error { grid-column: 1 / -1; }
 .danger-text { color: #da1e28; }
 .pending-panel { margin-top: 20px; }

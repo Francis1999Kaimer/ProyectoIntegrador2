@@ -16,6 +16,8 @@ export interface SimulationMetrics { train_accuracy: number; validation_accuracy
 export interface Simulation { id: string; workspace_id: string; requested_by: string; workspace_version: number; provider: string; status: string; seed: number; created_at: string; accuracy: string | null; loss: string | null; parameters: { epochs: number; [key: string]: unknown }; metrics: SimulationMetrics | null }
 export const typeCodes: Record<string, string> = { 'Reconocedor de caracteres': 'character_recognition', 'Clasificador de imágenes': 'image_classification', 'Reconocedor de sonidos cortos': 'sound_recognition', 'Clasificador de gestos de la mano': 'hand_gesture_classification', 'Clasificador de posturas corporales': 'body_posture_classification', 'Clasificador de dibujos simples': 'drawing_classification' }
 export function typeLabel(code: string) { return Object.entries(typeCodes).find(([,value]) => value === code)?.[0] ?? code }
+// Estado de las cuentas (alumnos y docentes); los proyectos usan statusLabels.
+export const accountStatusLabels: Record<string, string> = { active: 'Activa', pending: 'Pendiente', suspended: 'Suspendida' }
 export const statusLabels: Record<string, string> = { draft: 'Borrador', active: 'En progreso', completed: 'Completado', archived: 'Archivado', pending: 'Pendiente', suspended: 'Suspendido' }
 export type AssignmentState = 'upcoming' | 'open' | 'closed'
 export const assignmentStates: Record<AssignmentState, string> = { upcoming: 'Próxima', open: 'Abierta', closed: 'Cerrada' }

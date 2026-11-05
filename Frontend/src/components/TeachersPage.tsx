@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { api } from '../api/http'
 import { useResource } from '../api/useResource'
-import { statusLabels, type Teacher } from '../api/types'
+import { accountStatusLabels, type Teacher } from '../api/types'
 import { ApiMessage, Page } from './AppShell'
 import { PasswordReset } from './AccountForms'
 
@@ -27,7 +27,7 @@ export function TeachersPage() {
       <p>La cuenta queda activa y el docente deberá cambiar esta contraseña en su primer ingreso.</p>
       <button className="primary" disabled={busy||!name.trim()}>Registrar docente</button></form></details>
     <ApiMessage {...result} retry={result.reload}/>{result.data?.length===0&&<p className="api-message">No hay docentes registrados.</p>}
-    <ul className="roster-list panel resource-detail">{result.data?.map(t=><li key={t.id}><span><strong>{t.display_name}</strong><small>{t.username} · {statusLabels[t.status]??t.status}</small></span><div><button className="secondary" disabled={busy} onClick={()=>setResetting(t)}>Restablecer contraseña</button><button className="secondary" disabled={busy} onClick={()=>void action('PATCH','/teachers/'+t.id+'/status',{status:t.status==='active'?'suspended':'active'})}>{t.status==='active'?'Suspender':'Activar'}</button></div></li>)}</ul>
+    <ul className="roster-list panel resource-detail">{result.data?.map(t=><li key={t.id}><span><strong>{t.display_name}</strong><small>{t.username} · {accountStatusLabels[t.status]??t.status}</small></span><div><button className="secondary" disabled={busy} onClick={()=>setResetting(t)}>Restablecer contraseña</button><button className="secondary" disabled={busy} onClick={()=>void action('PATCH','/teachers/'+t.id+'/status',{status:t.status==='active'?'suspended':'active'})}>{t.status==='active'?'Suspender':'Activar'}</button></div></li>)}</ul>
     {resetting&&<PasswordReset key={resetting.id} userId={resetting.id} name={resetting.display_name} onClose={()=>setResetting(null)}/>}
     {!result.loading&&!result.error&&<div className="actions between api-pagination"><button className="secondary" disabled={!offset} onClick={()=>setOffset(Math.max(0,offset-25))}>Anterior</button><span>Página {offset/25+1}</span><button className="secondary" disabled={(result.data?.length??0)<25} onClick={()=>setOffset(offset+25)}>Siguiente</button></div>}
   </Page>

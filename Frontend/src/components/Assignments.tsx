@@ -156,7 +156,8 @@ function StudentView({ task, setTask }: { task: AssignmentDetail; setTask: (next
     {sub && <div className={sub.grade === null ? 'training-note' : 'training-success task-grade'}>
       {sub.grade !== null && <p className="task-grade-value">Nota: <strong>{grade(sub.grade)}</strong> / {grade(task.grade_max)}</p>}
       {sub.feedback && <p>Comentario del docente: «{sub.feedback}»</p>}
-      <p>Entregaste <strong>{submittedProject?.title ?? 'tu proyecto'}</strong>{sub.run_number ? ` (entrenamiento ${sub.run_number})` : ''} el {dateTime(sub.submitted_at)}.{sub.grade === null ? ' Puedes cambiarla hasta el cierre mientras no tenga nota.' : ''}</p>
+      <p>Entregaste <strong>{submittedProject?.title ?? 'tu proyecto'}</strong>{sub.run_number ? ` (entrenamiento ${sub.run_number})` : ''} · {dateTime(sub.submitted_at)}</p>
+      {sub.grade === null && <p>Puedes cambiar la entrega hasta el cierre mientras no tenga nota.</p>}
       <Link to={continuePath(sub.project_id)}>Abrir proyecto</Link>
     </div>}
     {task.state === 'upcoming' && <p>La tarea empieza el {dateTime(task.starts_at)}.</p>}

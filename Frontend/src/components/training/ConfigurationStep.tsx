@@ -97,7 +97,7 @@ function ConfigurationContent({ projectId, project, state }: StepContext) {
     </div>
     {state.runs.length > 0 && <p className="training-note">Cambiar la configuración no modifica los entrenamientos anteriores; el próximo se guardará como uno nuevo.</p>}
     <ApiMessage error={error} />
-    <StepActions back={{ to: stepUrl(2, projectId), label: 'Anterior · Paso 2' }} note={readOnly ? 'Solo el propietario puede cambiar la configuración.' : 'La configuración se guardará al continuar.'}>
+    <StepActions back={{ to: stepUrl(2, projectId), label: 'Anterior · Paso 2' }} note={readOnly ? (state.owner ? 'El proyecto o su salón está archivado: queda en solo lectura.' : 'Solo el propietario puede cambiar la configuración.') : 'La configuración se guardará al continuar.'}>
       <button className="primary" disabled={busy || (readOnly && state.step < 4)} onClick={() => void next()}>{busy ? 'Guardando…' : 'Siguiente · Paso 4'}</button>
     </StepActions>
   </>

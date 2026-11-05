@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { ArrowRight, BrainCircuit, FolderOpen, Plus } from 'lucide-react'
 import { api } from '../api/http'
 import { useResource } from '../api/useResource'
-import { statusLabels, typeLabel, type Catalog, type Classroom, type Project, type Student, type Teacher } from '../api/types'
+import { accountStatusLabels, statusLabels, typeLabel, type Catalog, type Classroom, type Project, type Student, type Teacher } from '../api/types'
 import { useAuth } from '../auth/AuthProvider'
 import { useProjectStore } from '../store/project'
 import { ApiMessage, Page } from './AppShell'
@@ -82,7 +82,7 @@ export function ClassroomDetail() {
     {manage&&<section className="panel resource-detail"><h2>Alumnos matriculados</h2>
       {room.data.status==='active'&&<details className="task-create"><summary>Crear alumno en este salón</summary><StudentForm classroomId={room.data.id} onCreated={()=>{roster.reload();eligible.reload()}}/></details>}
       <p>O matricula a un alumno que ya tiene cuenta.</p><ApiMessage {...eligible} retry={eligible.reload}/><form className="api-form" onSubmit={enroll}><label>Alumno<select required value={studentId} onChange={e=>setStudentId(e.target.value)}><option value="">Selecciona un alumno</option>{eligible.data?.map(s=><option key={s.id} value={s.id}>{s.display_name} · {s.username}</option>)}</select></label><button className="primary" disabled={busy||!studentId||room.data.status!=='active'}>Matricular alumno</button></form>
-      {eligible.data?.length===0&&<p>No hay otros alumnos activos para matricular.</p>}<ApiMessage {...roster} retry={roster.reload}/><ul className="roster-list">{roster.data?.map(s=><li key={s.id}><span><strong>{s.display_name}</strong><small>{s.username} · {statusLabels[s.status]??s.status}</small></span><div><button className="secondary" disabled={busy} onClick={()=>setResetting(s)}>Restablecer contraseña</button><button className="secondary" disabled={busy} onClick={()=>void mutation('DELETE','/classrooms/'+id+'/students/'+s.id)}>Retirar matrícula</button></div></li>)}</ul>
+      {eligible.data?.length===0&&<p>No hay otros alumnos activos para matricular.</p>}<ApiMessage {...roster} retry={roster.reload}/><ul className="roster-list">{roster.data?.map(s=><li key={s.id}><span><strong>{s.display_name}</strong><small>{s.username} · {accountStatusLabels[s.status]??s.status}</small></span><div><button className="secondary" disabled={busy} onClick={()=>setResetting(s)}>Restablecer contraseña</button><button className="secondary" disabled={busy} onClick={()=>void mutation('DELETE','/classrooms/'+id+'/students/'+s.id)}>Retirar matrícula</button></div></li>)}</ul>
       {resetting&&<PasswordReset key={resetting.id} userId={resetting.id} name={resetting.display_name} onClose={()=>setResetting(null)}/>}
       {roster.data?.length===0&&<p>Aún no hay alumnos matriculados.</p>}{!roster.loading&&!roster.error&&<Paging offset={offset} count={roster.data?.length??0} setOffset={setOffset}/>}</section>}
     <ClassroomAssignments classroomId={room.data.id} manage={manage&&(user?.role==='admin'||room.data.teacher_id===user?.id)} active={room.data.status==='active'}/>

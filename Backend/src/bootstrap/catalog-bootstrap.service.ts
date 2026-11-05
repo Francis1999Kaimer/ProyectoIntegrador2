@@ -48,6 +48,12 @@ export class CatalogBootstrapService implements OnApplicationBootstrap {
         { id: randomUUID(), username: 'aiblocks_demo_teacher', display_name: 'Demo teacher', password_hash: demoHash, role: 'teacher', status: 'active', must_change_password: false },
         { id: randomUUID(), username: 'aiblocks_demo_admin', display_name: 'Demo admin', password_hash: demoHash, role: 'admin', status: 'active', must_change_password: false }
       ], skipDuplicates: true });
+      // La cuenta demo de alumno trae su autorización para poder matricularla. Solo se registra
+      // si nunca tuvo una, así que una revocación posterior se respeta.
+      const demoStudent = await tx.users.findFirst({ where: { username: 'aiblocks_demo_student', role: 'student' }, select: { id: true } });
+      if (demoStudent && !await tx.guardian_consents.findFirst({ where: { student_id: demoStudent.id }, select: { id: true } })) {
+        await tx.guardian_consents.create({ data: { id: randomUUID(), student_id: demoStudent.id, guardian_name: 'Cuenta de demostración', consent_version: 'demo-local', consented_at: new Date() } });
+      }
       await tx.levels.createMany({ data: [
         { slug: 'exploradores', name: 'Exploradores', min_age: 5, max_age: 6 },
         { slug: 'aventureros', name: 'Aventureros', min_age: 7, max_age: 10 },
