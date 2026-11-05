@@ -5,3 +5,8 @@ export { api, getToken, setToken } from '../src/api/http'
 export { useProjectStore } from '../src/store/project'
 
 export { validateDatasetZip } from '../src/dataset-validation'
+export { splitDataset, splitCounts, testCount, seededRandom } from '../src/training/split'
+export { soundWindow, soundFeatures, SOUND_RATE } from '../src/training/prepare'
+export { buildModel, describeModel } from '../src/training/model'
+export { recommendedConfig, formatDuration } from '../src/training/hardware'
+export { evaluateModel, exportModel, loadModel, predict } from '../src/training/engine'
