@@ -1,4 +1,4 @@
-# ProyectoIntegrador2 — AI Blocks Studio
+# ProyectoIntegrador2 — AI Studio
 
 Plataforma web educativa para aprender inteligencia artificial mediante proyectos, clases y un editor visual de bloques. El alcance de **APF2** es una primera versión integrada, segura y desplegable; no es el producto final de 24 semanas.
 

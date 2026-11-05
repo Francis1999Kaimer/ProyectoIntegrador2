@@ -1,4 +1,4 @@
-# Decisiones técnicas — AI Blocks Studio (APF2)
+# Decisiones técnicas — AI Studio (APF2)
 
 Registro de las decisiones aprobadas para la segunda entrega. Las decisiones se pueden revisar si los requisitos del profesor o el hosting lo exigen; cada cambio debe reflejarse en la arquitectura, SQL y documentación.
 

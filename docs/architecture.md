@@ -1,4 +1,4 @@
-# Arquitectura de AI Blocks Studio — APF2
+# Arquitectura de AI Studio — APF2
 
 ## Alcance y principio
 

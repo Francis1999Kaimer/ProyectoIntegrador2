@@ -46,7 +46,7 @@ export function LoginPage() {
     } finally { sending.current = false; setBusy(false); setPassword('') }
   }
   return <main className="auth-page"><form className="panel auth-card" onSubmit={submit}>
-    <span className="brand"><BrainCircuit size={28}/>AI Blocks Studio</span><h1>Inicia sesión</h1><p>Continúa con tus proyectos y salones.</p>
+    <span className="brand"><BrainCircuit size={28}/>AI Studio</span><h1>Inicia sesión</h1><p>Continúa con tus proyectos y salones.</p>
     <label>Usuario<input autoComplete="username" required maxLength={64} value={username} onChange={e=>setUsername(e.target.value)} /></label>
     <label>Contraseña<input type="password" autoComplete="current-password" required maxLength={72} value={password} onChange={e=>setPassword(e.target.value)} /></label>
     {error && <p role="alert" className="api-error">{error}</p>}

@@ -1,4 +1,4 @@
-# Auditoría responsive — AI Blocks Studio
+# Auditoría responsive — AI Studio
 
 ## Problemas encontrados
 

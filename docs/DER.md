@@ -1,4 +1,4 @@
-# DER y diseño físico — AI Blocks Studio (APF2 / Hito 2)
+# DER y diseño físico — AI Studio (APF2 / Hito 2)
 
 Este documento describe el modelo físico implementado en [`database/schema.sql`](../database/schema.sql). **El script SQL es la fuente de verdad.** El diagrama y el diccionario se generaron a partir de sus definiciones de tablas, columnas, índices y relaciones.
 

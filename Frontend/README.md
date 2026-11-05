@@ -1,6 +1,6 @@
-# Frontend — AI Blocks Studio
+# Frontend — AI Studio
 
-Frontend React 19 + TypeScript + Vite de AI Blocks Studio. Mantiene la interfaz educativa existente y, desde el hito 7, se conecta a la API NestJS para autenticación, proyectos, salones, alumnos, lecciones y progreso.
+Frontend React 19 + TypeScript + Vite de AI Studio. Mantiene la interfaz educativa existente y, desde el hito 7, se conecta a la API NestJS para autenticación, proyectos, salones, alumnos, lecciones y progreso.
 
 ## Requisitos
 

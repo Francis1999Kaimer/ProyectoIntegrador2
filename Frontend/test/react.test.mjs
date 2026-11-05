@@ -233,7 +233,9 @@ test('the login form temporarily blocks a username after three wrong passwords',
   assert.ok(button?.disabled)
 }))
 test('public landing presents the product and sends visitors to login',()=>fixture(async()=>{
-  await mount('/');assert.match(text(),/Entrena un modelo que/);await click('Iniciar sesión');assert.equal(window.location.pathname,'/login')
+  await mount('/');assert.match(text(),/Entrena modelos de IA que/);assert.match(text(),/AI Studio/);assert.ok(!text().includes('AI Blocks'))
+  assert.equal(document.querySelectorAll('.landing-types li').length,6);assert.equal(document.querySelectorAll('.landing-steps li').length,7)
+  await click('Iniciar sesión');assert.equal(window.location.pathname,'/login')
 }))
 test('new project screen selects each type and advances to dataset validation',()=>fixture(async()=>{
   await mount();await login();await click('Crear proyecto');await fill('Nombre del proyecto','Proyecto nuevo DOM')

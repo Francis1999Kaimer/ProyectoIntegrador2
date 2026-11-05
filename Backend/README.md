@@ -1,4 +1,4 @@
-# Backend — AI Blocks Studio (APF2 hitos 3–6)
+# Backend — AI Studio (APF2 hitos 3–6)
 
 API NestJS 11 + TypeScript + Prisma 6.19 (versión fijada para este hito).
 Requiere Node 22.12+ (línea 22) o Node 24. Ejecutar desde `Backend/`.

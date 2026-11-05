@@ -12,4 +12,5 @@ import './responsive.css'
 import './connected.css'
 import './training.css'
 import './assignments.css'
+import './landing.css'
 createRoot(document.getElementById('root')!).render(<StrictMode><BrowserRouter><AuthProvider><Gate/></AuthProvider></BrowserRouter></StrictMode>)
