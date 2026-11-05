@@ -19,6 +19,7 @@ function ProjectSelection({children}:{children:ReactNode}) {
   useEffect(()=>{if(result.data)select(result.data)},[result.data,select])
   if (!id) return <Page><section className="panel empty-state"><h1>Selecciona un proyecto</h1><Link to="/proyectos">Ir a proyectos</Link></section></Page>
   if (result.loading || result.error || !result.data || selectedId!==id) return <Page><ApiMessage loading={result.loading||(!result.error&&selectedId!==id)} error={result.error} retry={result.reload}/></Page>
+  if (result.data.project_type !== 'character_recognition') return <Page><section className="panel empty-state"><h1>Entrenamiento pendiente</h1><p>El dataset está guardado. El flujo de entrenamiento para este tipo de proyecto todavía está en desarrollo.</p><Link to={'/proyectos/' + result.data.id}>Volver al proyecto</Link></section></Page>
   return <><div className="demo-notice" role="note">Laboratorio de caracteres: el entrenamiento es real en el navegador. El ZIP, modelo y resultados se guardan de forma privada en el proyecto para continuar desde otro equipo.</div>{children}</>
 }
 function RoutedExperience() {
