@@ -2,6 +2,8 @@ import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {JSDOM} from 'jsdom'
 import React,{act} from 'react'
+import JSZip from 'jszip'
+import { File as NodeFile } from 'node:buffer'
 const dom=new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>',{url:'http://localhost:5173/'})
 for(const key of ['window','document','HTMLElement','HTMLInputElement','HTMLSelectElement','sessionStorage','Event','MouseEvent','CustomEvent'])globalThis[key]=dom.window[key]
 Object.defineProperty(globalThis,'navigator',{value:dom.window.navigator,configurable:true})
@@ -34,6 +36,10 @@ globalThis.fetch=async(url,options={})=>{
   }
   if(user.must_change_password)return json(403,{})
   if(path==='/catalog')return json(200,{levels:[{id:1,name:'Exploradores'}],courses:[{id:uid(90),title:'Curso piloto'}]})
+  if(path==='/projects/with-dataset'&&method==='POST'){
+    const p={id:body.request_id,owner_id:user.id,title:body.title,project_type:body.project_type,status:'draft'}
+    current.projects.push(p);return json(201,p)
+  }
   if(path==='/projects'){
     if(current.projectsError)return json(current.projectsError,{message:'driver secret'})
     if(method==='POST'){const p={id:uid(++current.sequence+100),...body,owner_id:user.id,status:'draft',updated_at:new Date().toISOString()};current.projects.push(p);return json(201,p)}
@@ -223,4 +229,23 @@ test('late 401 from an old request does not clear a newly authenticated session'
   await click('Salir');await login('teacher');const next=getToken();assert.notEqual(next,old)
   await act(async()=>{current.deferred();await request})
   assert.equal(getToken(),next);assert.match(text(),/Hola, Test teacher/)
+}))
+
+test('validated image dataset saves project and archive through the API',()=>fixture(async()=>{
+  await mount();await login();await click('Crear proyecto');await fill('Nombre del proyecto','Proyecto con datos')
+  const choice=[...document.querySelectorAll('.project-type-option')].find(item=>item.textContent.includes('Clasificador de imágenes'))
+  await act(async()=>{choice.click();await Promise.resolve()});await click('Siguiente')
+  const zip=new JSZip()
+  for(const name of ['A/1.png','A/2.png','B/1.jpg','B/2.jpg'])zip.file(name,new Uint8Array([1,2,3]))
+  const file=new NodeFile([await zip.generateAsync({type:'uint8array'})],'datos.zip',{type:'application/zip'})
+  globalThis.createImageBitmap=async()=>({close(){}})
+  const input=document.querySelector('input[aria-label="Dataset ZIP"]')
+  Object.defineProperty(input,'files',{value:[file],configurable:true})
+  await act(async()=>{input.dispatchEvent(new window.Event('change',{bubbles:true}));await new Promise(resolve=>setTimeout(resolve,40))})
+  assert.match(text(),/ZIP validado/)
+  await click('Guardar proyecto y dataset')
+  assert.match(text(),/Proyecto y dataset guardados correctamente/)
+  const req=current.requests.find(r=>r.path==='/projects/with-dataset')
+  assert.equal(req.body.project_type,'image_classification');assert.equal(req.body.samples,4)
+  assert.deepEqual(req.body.labels,['A','B']);assert.ok(req.body.archive_base64)
 }))
