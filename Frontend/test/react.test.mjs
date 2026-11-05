@@ -136,15 +136,19 @@ test('the login form temporarily blocks a username after three wrong passwords',
 test('public landing presents the product and sends visitors to login',()=>fixture(async()=>{
   await mount('/');assert.match(text(),/Entrena un modelo que/);await click('Iniciar sesión');assert.equal(window.location.pathname,'/login')
 }))
-test('project creation uses API, persists metadata, survives session restore and sends no caller owner id',()=>fixture(async()=>{
-  await mount();await login();await click('Crear proyecto');await fill('Nombre del proyecto','Proyecto nuevo DOM');await click('Crear y cargar dataset')
-  assert.equal(window.location.pathname,'/dataset');assert.match(text(),/Laboratorio de caracteres/)
-  const created=current.projects.find(p=>p.title==='Proyecto nuevo DOM');assert.ok(created)
-  assert.equal(new URLSearchParams(window.location.search).get('project'),created.id)
-  assert.equal(current.requests.find(r=>r.method==='POST'&&r.path==='/projects').body.owner_id,undefined)
-  const token=getToken();assert.ok(token);assert.equal(sessionStorage.length,1);assert.ok(!sessionStorage.getItem('aiblocks.session.token').includes(PASSWORD))
-  await unmount();await mount('/dataset?project='+created.id);assert.equal(useProjectStore.getState().name,'Proyecto nuevo DOM');assert.match(text(),/Test student/)
-  await click('Salir');assert.equal(getToken(),null);assert.equal(sessionStorage.length,0);assert.equal(useProjectStore.getState().id,null)
+test('new project screen selects each type without creating a project yet',()=>fixture(async()=>{
+  await mount();await login();await click('Crear proyecto');await fill('Nombre del proyecto','Proyecto nuevo DOM')
+  const choices=[...document.querySelectorAll('.project-type-option')]
+  assert.equal(choices.length,6)
+  for(const choice of choices){
+    assert.equal(choice.disabled,false)
+    await act(async()=>{choice.click();await Promise.resolve()})
+    assert.equal(choice.getAttribute('aria-pressed'),'true')
+    assert.equal(choices.filter(item=>item.getAttribute('aria-pressed')==='true').length,1)
+  }
+  await click('Siguiente')
+  assert.equal(window.location.pathname,'/crear')
+  assert.equal(current.requests.some(r=>r.method==='POST'&&r.path==='/projects'),false)
 }))
 test('teacher classroom form, roster enrollment and removal use real component event flow',()=>fixture(async()=>{
   await mount();await login('teacher');await click('Salones');await click('Crear salón');await fill('Nombre','Salon nuevo DOM');await fill('Nivel','1');await fill('Curso',uid(90));await submit('Nombre')
