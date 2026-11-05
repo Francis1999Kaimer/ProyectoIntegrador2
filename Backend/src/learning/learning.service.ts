@@ -3,7 +3,7 @@ import { PasswordService } from '../auth/password.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PageRequest, Project, SimulationRun, Workspace } from '../repositories/contracts';
 import { Actor, LEARNING_REPOSITORY, LearningRepository } from '../repositories/learning.contracts';
-import { CharacterDatasetDto, CharacterTrainingDto, ClassroomDto, ClassroomPatchDto, ConsentDto, ProjectDto, ProjectPatchDto, StudentDto, TeacherDto, WorkspaceDto } from './learning.dto';
+import { CharacterDatasetDto, CharacterTrainingDto, ClassroomDto, ClassroomPatchDto, ConsentDto, ProjectDto, ProjectPatchDto, ProjectWithDatasetDto, StudentDto, TeacherDto, WorkspaceDto } from './learning.dto';
 import { simulatePedagogically } from './pedagogical-simulation';
 
 @Injectable()
@@ -92,6 +92,28 @@ export class LearningService {
       if (room.status !== 'active') throw new BadRequestException('El salón está archivado.');
     }
     return this.repo.createProject(actor.id, input);
+  }
+  async createProjectWithDataset(actor: Actor, input: ProjectWithDatasetDto) {
+    if (input.classroom_id) {
+      const room = await this.classroom(actor, input.classroom_id);
+      if (room.status !== 'active') throw new BadRequestException('El salón está archivado.');
+    }
+    if (input.project_type === 'character_recognition' && input.samples < 12) throw new BadRequestException('Se necesitan al menos 12 imágenes para caracteres.');
+    const labels = this.labels(input.labels), bytes = this.archive(input.archive_base64, 'El dataset');
+    return this.db.$transaction(async tx => {
+      const existing = await tx.projects.findUnique({ where: { id: input.request_id } });
+      if (existing) {
+        const lab = await tx.character_labs.findUnique({ where: { project_id: existing.id } });
+        if (existing.owner_id !== actor.id || existing.title !== input.title || existing.project_type !== input.project_type ||
+            existing.classroom_id !== (input.classroom_id ?? null) || !lab || lab.dataset_file_name !== input.file_name ||
+            lab.dataset_samples !== input.samples || lab.dataset_labels_json !== JSON.stringify(labels) ||
+            !Buffer.from(lab.dataset_bytes).equals(bytes)) throw new BadRequestException('No se pudo repetir el guardado; inicia un proyecto nuevo.');
+        return existing;
+      }
+      const project = await tx.projects.create({ data: { id: input.request_id, owner_id: actor.id, title: input.title, project_type: input.project_type, classroom_id: input.classroom_id ?? null } });
+      await tx.character_labs.create({ data: { project_id: project.id, dataset_file_name: input.file_name, dataset_content_type: input.content_type, dataset_bytes: bytes, dataset_labels_json: JSON.stringify(labels), dataset_samples: input.samples } });
+      return project;
+    });
   }
   async updateProject(actor: Actor, id: string, input: ProjectPatchDto) {
     await this.project(actor, id, true);
