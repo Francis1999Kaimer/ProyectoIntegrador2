@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { ArrowRight, Target } from 'lucide-react'
 import { Link, useNavigate } from 'react-router'
-import { type Classroom } from '../api/types'
+import { api } from '../api/http'
+import { type Classroom, type Project } from '../api/types'
 import { useResource } from '../api/useResource'
 import { useProjectStore } from '../store/project'
 import { ApiMessage, Header } from './AppShell'
@@ -21,6 +22,24 @@ export default function CreateProjectDynamic() {
   const rooms = useResource<Classroom[]>('/classrooms?limit=100')
   const [classroom, setClassroom] = useState('')
   const [type, setType] = useState<string>('characters')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const pending = useRef<{ signature: string; id: string } | undefined>(undefined)
+  const sending = useRef(false)
+  async function create() {
+    if (!name.trim() || sending.current) return
+    const codes: Record<string, string> = { characters: 'character_recognition', images: 'image_classification', sounds: 'sound_recognition', hands: 'hand_gesture_classification', postures: 'body_posture_classification', drawings: 'drawing_classification' }
+    const body = { title: name.trim(), project_type: codes[type], ...(classroom ? { classroom_id: classroom } : {}) }
+    const signature = JSON.stringify(body)
+    if (!pending.current || pending.current.signature !== signature) pending.current = { signature, id: crypto.randomUUID() }
+    sending.current = true; setBusy(true); setError('')
+    try {
+      const project = await api.request<Project>('/projects/draft', { method: 'POST', body: { ...body, request_id: pending.current.id } })
+      useProjectStore.getState().select(project)
+      navigate('/crear/datos?project=' + encodeURIComponent(project.id))
+    } catch (e) { setError((e as Error).message) }
+    finally { sending.current = false; setBusy(false) }
+  }
 
   const selected = projectTypes.find(item => item.id === type) ?? projectTypes[0]
 
@@ -58,9 +77,10 @@ export default function CreateProjectDynamic() {
             <pre><code>{selected.dataset}</code></pre>
           </section>
         </div>
+        <ApiMessage error={error} />
         <div className="actions wizard-actions">
           <Link className="secondary button-link" to="/">Cancelar</Link>
-          <button type="button" className="primary" disabled={!name.trim()} onClick={() => navigate('/crear/datos', { state: { name: name.trim(), classroom, type, title: selected.title } })}>Siguiente <ArrowRight size={17} /></button>
+          <button type="button" className="primary" disabled={!name.trim() || busy} onClick={() => void create()}>{busy ? 'Creando…' : 'Crear proyecto y siguiente'} <ArrowRight size={17} /></button>
         </div>
       </section>
     </main>
