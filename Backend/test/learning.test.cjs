@@ -111,10 +111,15 @@ async function fixture() {
       user.password_hash = next; user.must_change_password = false; return true;
     }
   };
+  const storedLabs = new Map();
+  const db = { $queryRaw: async () => [{ ok: 1 }] };
+  db.projects = { findUnique: async ({where}) => projects.find(p => p.id === where.id) ?? null, create: async ({data}) => { const p = {...data,status:'draft'}; projects.push(p); return p; } };
+  db.character_labs = { findUnique: async ({where}) => storedLabs.get(where.project_id) ?? null, create: async ({data}) => { const row={...data,dataset_updated_at:new Date(),model_file_name:null,model_content_type:null,training_metrics_json:null,training_updated_at:null}; storedLabs.set(data.project_id,row); return row; } };
+  db.$transaction = async fn => fn(db);
   const module = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(USER_REPOSITORY).useValue(authRepo)
     .overrideProvider(LEARNING_REPOSITORY).useValue(repo)
-    .overrideProvider(PrismaService).useValue({ $queryRaw: async () => [{ ok: 1 }] }).compile();
+    .overrideProvider(PrismaService).useValue(db).compile();
   const app = module.createNestApplication({ logger: false });
   await app.listen(0, '127.0.0.1');
   const base = await app.getUrl();
@@ -338,5 +343,20 @@ test('local smoke script completes all HTTP stages and archives only its synthet
     Module._load = load; console.log = log; console.error = error;
     for (const [key,value] of Object.entries(env)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
     process.exitCode = undefined;
+  }
+}));
+
+test('new project with dataset requires auth, supports each type, and prevents cross-owner access', () => withFixture(async f => {
+  const types=['character_recognition','image_classification','sound_recognition','hand_gesture_classification','body_posture_classification','drawing_classification'];
+  for(const project_type of types) {
+    const body={request_id:randomUUID(),title:'Dataset test',project_type,file_name:'test.zip',content_type:'application/zip',archive_base64:Buffer.from([0x50,0x4b,3,4]).toString('base64'),labels:['A','B'],samples:12};
+    assert.equal((await f.call(null,'POST','/projects/with-dataset',body)).status,401);
+    const created=await f.call(f.a,'POST','/projects/with-dataset',body);
+    assert.equal(created.status,201); assert.equal(created.body.owner_id,f.a.id);
+    const retry=await f.call(f.a,'POST','/projects/with-dataset',body);
+    assert.equal(retry.status,201); assert.equal(retry.body.id,created.body.id);
+    assert.equal((await f.call(f.b,'GET','/projects/'+created.body.id+'/character-lab')).status,404);
+    const stored=await f.call(f.a,'GET','/projects/'+created.body.id+'/character-lab');
+    assert.equal(stored.status,200); assert.equal(stored.body.dataset.samples,12);
   }
 }));
