@@ -451,6 +451,7 @@ test('step 6 loads the last model and offers the inputs for the project type and
   assert.match(text(),/PASO 6 · PRUEBA/);assert.match(text(),/modelo del entrenamiento 1/)
   assert.ok(button('Usar cámara'));assert.ok(button('Descargar modelo'))
   assert.ok(current.requests.some(r=>r.path==='/projects/'+p.id+'/training/model-file'))
+  await click('Ir a proyectos');await waitFor(()=>window.location.pathname==='/proyectos')
 }))
 
 test('opening a project continues at the last step reached; later steps redirect back',()=>fixture(async()=>{

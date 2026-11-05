@@ -146,7 +146,10 @@ function PredictionContent({ projectId, project, state }: StepContext) {
         <button type="button" className="primary" onClick={() => void download()}><Download size={16} /> Descargar modelo</button>
       </section>
     </>}
-    <StepActions back={{ to: stepUrl(5, projectId), label: 'Anterior · Paso 5' }} />
+    <StepActions back={{ to: stepUrl(5, projectId), label: 'Anterior · Paso 5' }}>
+      {/* Último paso: no hay «finalizar»; se vuelve a la lista de proyectos. */}
+      <Link className="primary button-link" to="/proyectos">Ir a proyectos</Link>
+    </StepActions>
   </>
 }
 
