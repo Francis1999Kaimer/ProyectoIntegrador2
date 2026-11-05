@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { PageRequest } from './contracts';
 import { pagination } from './pagination';
-import { Actor, ClassroomPatch, ConsentInput, DataConflict, DataMissing, LearningRepository, NewClassroom, NewSimulationRun, NewStudent, ProgressAccess, ProjectPatch } from './learning.contracts';
+import { Actor, ClassroomPatch, ConsentInput, DataConflict, DataMissing, LearningRepository, NewClassroom, NewSimulationRun, NewStudent, NewStudentAccount, ProgressAccess, ProjectPatch } from './learning.contracts';
 
 const studentSelect = { id: true, username: true, display_name: true, status: true } as const;
 const teacherSelect = { id: true, username: true, display_name: true, status: true } as const;
@@ -51,11 +51,25 @@ export class PrismaLearningRepository implements LearningRepository {
       student_id: studentId, rel_fk_enrollments_classroom: { teacher_id: teacherId, status: 'active' }
     }, select: { student_id: true } });
   }
-  createStudent(input: NewStudent) {
-    return this.write(() => this.db.users.create({ data: {
-      id: randomUUID(), username: input.username, display_name: input.display_name,
-      password_hash: input.password_hash, role: 'student', status: 'pending', must_change_password: true
-    }, select: studentSelect }));
+  createStudent(input: NewStudentAccount) {
+    return this.write(() => this.db.$transaction(async tx => {
+      if (input.classroom_id && !await tx.classrooms.findFirst({ where: { id: input.classroom_id, status: 'active' } })) throw new DataConflict();
+      const id = randomUUID(), now = new Date();
+      const student = await tx.users.create({ data: {
+        id, username: input.username, display_name: input.display_name, password_hash: input.password_hash,
+        role: 'student', status: 'active', must_change_password: input.must_change_password
+      }, select: studentSelect });
+      // La casilla del formulario queda como registro de consentimiento.
+      await tx.guardian_consents.create({ data: {
+        id: randomUUID(), student_id: id, guardian_name: input.guardian_name, consent_version: input.consent_version, consented_at: now
+      } });
+      if (input.classroom_id) await tx.classroom_enrollments.create({ data: { classroom_id: input.classroom_id, student_id: id } });
+      return student;
+    }, serial));
+  }
+  account(id: string) { return this.db.users.findUnique({ where: { id }, select: { id: true, role: true, status: true } }); }
+  async resetPassword(id: string, passwordHash: string, mustChange: boolean) {
+    await this.write(() => this.db.users.update({ where: { id }, data: { password_hash: passwordHash, must_change_password: mustChange, updated_at: new Date() } }));
   }
   createTeacher(input: NewStudent) {
     return this.write(() => this.db.users.create({ data: {
@@ -111,10 +125,10 @@ export class PrismaLearningRepository implements LearningRepository {
     }, serial));
   }
   async validTeacher(id: string) { return !!await this.db.users.findFirst({ where: { id, role: 'teacher', status: 'active' }, select: { id: true } }); }
-  async validCatalog(levelId: number, courseId: string) {
+  async validCatalog(levelId: number, courseId?: string | null) {
     const [level, course] = await Promise.all([
       this.db.levels.findUnique({ where: { id: levelId }, select: { id: true } }),
-      this.db.courses.findFirst({ where: { id: courseId, status: 'published' }, select: { id: true } })
+      courseId ? this.db.courses.findFirst({ where: { id: courseId, status: 'published' }, select: { id: true } }) : Promise.resolve(true)
     ]);
     return !!level && !!course;
   }
@@ -129,7 +143,7 @@ export class PrismaLearningRepository implements LearningRepository {
     return !!await this.db.classroom_enrollments.findUnique({ where: { classroom_id_student_id: { classroom_id: classroomId, student_id: studentId } } });
   }
   createClassroom(input: NewClassroom) {
-    return this.write(() => this.db.classrooms.create({ data: { id: randomUUID(), ...input } }));
+    return this.write(() => this.db.classrooms.create({ data: { id: randomUUID(), ...input, course_id: input.course_id ?? null } }));
   }
   updateClassroom(id: string, input: ClassroomPatch) {
     return this.write(() => this.db.classrooms.update({ where: { id }, data: { ...input, updated_at: new Date() } }));
@@ -163,6 +177,7 @@ export class PrismaLearningRepository implements LearningRepository {
   async lessons(classroomId: string, page: PageRequest) {
     const classroom = await this.classroom(classroomId);
     if (!classroom || classroom.status !== 'active') throw new DataMissing();
+    if (!classroom.course_id) return [];
     return this.db.lessons.findMany({ where: {
       level_id: classroom.level_id, status: 'published', rel_fk_lessons_week: {
         course_id: classroom.course_id, rel_fk_course_weeks_course: { status: 'published' }
@@ -228,7 +243,8 @@ export class PrismaLearningRepository implements LearningRepository {
       where: { teacher_id: access.teacher_id, status: 'active',
         back_fk_enrollments_classroom: { some: { student_id: access.student_id } } },
       select: { level_id: true, course_id: true }
-    }) : null;
+    }).then(list => list.filter((room): room is { level_id: number; course_id: string } => !!room.course_id)) : null;
+    // Los salones sin curso no tienen lecciones.
     if (rooms && !rooms.length) return [];
     return this.db.lesson_progress.findMany({ where: {
       student_id: access.student_id,

@@ -15,7 +15,8 @@ function fixture(projectType = 'image_classification') {
   const project = { id: randomUUID(), owner_id: owner.id, classroom_id: room.id, title: 'P', project_type: projectType, status: 'draft' }
   const repo = { project: async id => id === project.id ? project : null, classroom: async id => id === room.id ? room : null }
   const t = trainingDb(), learning = new LearningService(repo, {}, t.db)
-  return { ...t, project, owner, other, teacher, admin, service: new TrainingService(learning, t.db) }
+  t.rooms.set(room.id, room)
+  return { ...t, project, room, owner, other, teacher, admin, service: new TrainingService(learning, t.db) }
 }
 
 test('server inspection counts real examples per category and enforces the step 1 format', async () => {
@@ -93,6 +94,10 @@ test('only the owner changes the project; classroom teacher and admin read; arch
   assert.equal(viewer.owner, false); assert.equal(viewer.editable, false); assert.equal(viewer.dataset.can_replace, false)
   assert.equal((await f.service.state(f.admin, id)).dataset.samples, 20)
   assert.equal(await status(f.service.lockDataset(f.admin, id)), 404)
+  f.room.status = 'archived'
+  assert.equal(await status(f.service.lockDataset(f.owner, id)), 400, 'salón archivado: solo lectura')
+  assert.equal((await f.service.state(f.owner, id)).editable, false)
+  f.room.status = 'active'
   f.project.status = 'archived'
   assert.equal(await status(f.service.lockDataset(f.owner, id)), 400)
   assert.equal((await f.service.state(f.owner, id)).editable, false)

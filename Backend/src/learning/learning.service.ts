@@ -3,7 +3,7 @@ import { PasswordService } from '../auth/password.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PageRequest, Project, SimulationRun, Workspace } from '../repositories/contracts';
 import { Actor, LEARNING_REPOSITORY, LearningRepository } from '../repositories/learning.contracts';
-import { ClassroomDto, ClassroomPatchDto, ConsentDto, ProjectDto, ProjectPatchDto, ProjectDraftDto, StudentDto, TeacherDto, WorkspaceDto } from './learning.dto';
+import { ClassroomDto, ClassroomPatchDto, ConsentDto, PasswordResetDto, ProjectDto, ProjectPatchDto, ProjectDraftDto, StudentDto, TeacherDto, WorkspaceDto } from './learning.dto';
 import { simulatePedagogically } from './pedagogical-simulation';
 
 @Injectable()
@@ -13,9 +13,25 @@ export class LearningService {
   catalog() { return this.repo.catalog(); }
   students(actor: Actor, page: PageRequest) { return this.repo.listStudents(actor, page); }
   teachers(page: PageRequest) { return this.repo.listTeachers(page); }
-  async createStudent(input: StudentDto) {
-    return this.repo.createStudent({ username: input.username, display_name: input.display_name,
-      password_hash: await this.passwords.hash(input.password) });
+  // El docente crea alumnos en uno de sus salones (quedan matriculados); el administrador, en cualquiera o sin salón.
+  async createStudent(actor: Actor, input: StudentDto) {
+    if (actor.role === 'teacher' && !input.classroom_id) throw new BadRequestException('Indica el salón del alumno.');
+    if (input.classroom_id) {
+      const room = await this.classroom(actor, input.classroom_id, true);
+      if (room.status !== 'active') throw new BadRequestException('El salón está archivado.');
+    }
+    return this.repo.createStudent({
+      username: input.username, display_name: input.display_name, password_hash: await this.passwords.hash(input.password),
+      must_change_password: input.require_password_change ?? true, guardian_name: input.guardian_name || 'No indicado',
+      consent_version: 'casilla-alta-v1', classroom_id: input.classroom_id
+    });
+  }
+  // El docente restablece la contraseña de los alumnos de sus salones activos; el administrador, la de cualquier cuenta.
+  async resetPassword(actor: Actor, id: string, input: PasswordResetDto) {
+    const target = await this.repo.account(id);
+    const allowed = !!target && (actor.role === 'admin' || (actor.role === 'teacher' && target.role === 'student' && await this.repo.teacherHasStudent(actor.id, id)));
+    if (!allowed) throw new NotFoundException('Cuenta no encontrada.');
+    await this.repo.resetPassword(id, await this.passwords.hash(input.password), input.require_password_change ?? true);
   }
   async createTeacher(input: TeacherDto) {
     return this.repo.createTeacher({ username: input.username, display_name: input.display_name,

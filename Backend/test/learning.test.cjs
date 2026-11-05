@@ -28,7 +28,7 @@ async function fixture() {
   const otherRoom = { id: randomUUID(), teacher_id: other.id, level_id: 1, course_id: secondCourse, status: 'active', name: 'Other room' };
   const rooms = [room, otherRoom];
   const enrollments = new Set([room.id + ':' + a.id]);
-  const consents = new Set([a.id]);
+  const consents = new Set([a.id]), consentLog = [];
   const projects = [{ id: randomUUID(), owner_id: a.id, classroom_id: room.id, title: 'A project', status: 'draft', project_type: 'blocks' }];
   const workspaces = new Map(), snapshots = [], progress = [], simulations = [];
   const lesson = { id: lessonId, level_id: 1, title: 'Test lesson', content_json: JSON.stringify({ sections: [1,2,3,4,5] }) };
@@ -41,9 +41,15 @@ async function fixture() {
     teacherHasStudent: async (teacher, student) => rooms.some(r => r.teacher_id === teacher && r.status === 'active' && enrollments.has(r.id + ':' + student)),
     createStudent: async input => {
       if (users.some(u => u.username === input.username)) throw new DataConflict();
-      const u = { id: randomUUID(), ...input, role: 'student', status: 'pending', must_change_password: true };
-      users.push(u); return publicStudent(u);
+      if (input.classroom_id && rooms.find(r => r.id === input.classroom_id)?.status !== 'active') throw new DataConflict();
+      const { classroom_id, guardian_name, consent_version, ...fields } = input;
+      const u = { id: randomUUID(), ...fields, role: 'student', status: 'active' };
+      users.push(u); consents.add(u.id); consentLog.push({ student_id: u.id, guardian_name, consent_version });
+      if (classroom_id) enrollments.add(classroom_id + ':' + u.id);
+      return publicStudent(u);
     },
+    account: async id => { const u = users.find(u => u.id === id); return u ? { id: u.id, role: u.role, status: u.status } : null; },
+    resetPassword: async (id, password_hash, must_change_password) => { const u = users.find(u => u.id === id); if (!u) throw new DataMissing(); Object.assign(u, { password_hash, must_change_password }); },
     createTeacher: async input => {
       if (users.some(u => u.username === input.username)) throw new DataConflict();
       const u = { id: randomUUID(), ...input, role: 'teacher', status: 'active', must_change_password: true };
@@ -64,7 +70,7 @@ async function fixture() {
     currentConsent: async id => consents.has(id) ? { guardian_name: 'Synthetic guardian', consent_version: 'unit-test-v1', consented_at: new Date() } : null,
     revokeConsent: async id => { consents.delete(id); users.find(u => u.id === id).status = 'suspended'; },
     validTeacher: async id => users.some(u => u.id === id && u.role === 'teacher' && u.status === 'active'),
-    validCatalog: async (level, c) => level === 1 && c === course,
+    validCatalog: async (level, c) => level === 1 && (!c || c === course),
     listClassrooms: async actor => rooms.filter(r => canRoom(actor, r)),
     classroom: async id => rooms.find(r => r.id === id) ?? null,
     enrolled: async (id, student) => enrollments.has(id + ':' + student),
@@ -116,6 +122,7 @@ async function fixture() {
   db.projects = { findUnique: async ({where}) => projects.find(p => p.id === where.id) ?? null, create: async ({data}) => { if(projects.some(p=>p.id===data.id)) throw Object.assign(new Error('duplicate'),{code:'P2002'}); const p = {...data,status:'draft'}; projects.push(p); return p; } };
   const training = trainingDb();
   db.character_labs = training.db.character_labs; db.training_runs = training.db.training_runs;
+  db.classrooms = { findUnique: async ({where}) => rooms.find(r => r.id === where.id) ?? null };
   db.$transaction = async fn => fn(db);
   const module = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(USER_REPOSITORY).useValue(authRepo)
@@ -134,7 +141,7 @@ async function fixture() {
     }, body: body === undefined ? undefined : JSON.stringify(body) });
     return { status: response.status, body: response.status === 204 ? null : await response.json() };
   }
-  return { app, base, tokens, users, a, b, t, other, admin, course, room, rooms, otherRoom, projects, repo, call, lessonId, progress, snapshots, workspaces, simulations, enrollments };
+  return { app, base, tokens, consents, consentLog, users, a, b, t, other, admin, course, room, rooms, otherRoom, projects, repo, call, lessonId, progress, snapshots, workspaces, simulations, enrollments };
 }
 const graph = { schemaVersion: 1, nodes: [{ id: 'n1', position: { x: 0, y: 0 }, data: { label: 'Input' } }], edges: [] };
 const simulationGraph = { schemaVersion: 1, nodes: [
@@ -149,7 +156,8 @@ test('business APIs require JWT and roles; classroom, roster and project lists a
   for (const path of ['/catalog','/students','/classrooms','/projects','/progress']) assert.equal((await f.call(null,'GET',path)).status,401);
   assert.equal((await f.call(f.a,'GET','/students')).status,403);
   assert.equal((await f.call(f.a,'POST','/classrooms',{})).status,403);
-  assert.equal((await f.call(f.t,'POST','/students',{})).status,403);
+  assert.equal((await f.call(f.t,'POST','/students',{})).status,400);
+  assert.equal((await f.call(f.a,'POST','/students',{})).status,403);
   assert.equal((await f.call(f.a,'GET',`/classrooms/${f.room.id}/students`)).status,403);
   assert.equal((await f.call(f.other,'GET',`/classrooms/${f.room.id}`)).status,404);
   assert.equal((await f.call(f.b,'GET',`/classrooms/${f.room.id}`)).status,404);
@@ -162,24 +170,47 @@ test('business APIs require JWT and roles; classroom, roster and project lists a
   assert.equal((await f.call(f.admin,'GET','/students')).body.length,2);
 }));
 
-test('admin student creation hashes passwords, denies field injection and requires consent to activate', () => withFixture(async f => {
-  const body = { username: 'new_student', display_name: 'New student', password: PASSWORD };
+test('student accounts are created active in one step with the guardian authorization; teachers create them in their own classroom', () => withFixture(async f => {
+  const body = { username: 'new_student', display_name: 'New student', password: PASSWORD, guardian_authorized: true, guardian_name: 'Tutor sintético' };
+  assert.equal((await f.call(f.admin,'POST','/students',{ ...body, guardian_authorized: false })).status,400,'la casilla es obligatoria');
   assert.equal((await f.call(f.admin,'POST','/students',{ ...body, role:'admin' })).status,400);
   assert.equal((await f.call(f.admin,'POST','/students',{ ...body, password:'🙂'.repeat(20) })).status,400);
   const created = await f.call(f.admin,'POST','/students',body);
-  assert.equal(created.status,201); assert.equal(created.body.status,'pending');
+  assert.equal(created.status,201); assert.equal(created.body.status,'active');
   assert.equal(created.body.password_hash,undefined);
   const stored = f.users.find(u=>u.id===created.body.id);
   assert.equal(bcrypt.getRounds(stored.password_hash),12);
   assert.equal(stored.must_change_password,true);
+  assert.ok(f.consents.has(created.body.id));
+  assert.deepEqual(f.consentLog.at(-1),{ student_id: created.body.id, guardian_name: 'Tutor sintético', consent_version: 'casilla-alta-v1' });
   assert.equal((await f.call(f.admin,'POST','/students',body)).status,409);
-  const statusPath = `/students/${created.body.id}/status`;
-  assert.equal((await f.call(f.admin,'PATCH',statusPath,{status:'active'})).status,409);
-  const consentPath = `/students/${created.body.id}/consents`;
-  assert.equal((await f.call(f.t,'POST',consentPath,{guardian_name:'Synthetic',consent_version:'test-v1'})).status,403);
-  assert.equal((await f.call(f.admin,'POST',consentPath,{guardian_name:'Synthetic',consent_version:'test-v1'})).status,201);
-  assert.equal((await f.call(f.admin,'PATCH',statusPath,{status:'active'})).status,200);
-  assert.equal((await f.call(f.admin,'POST',`/classrooms/${f.room.id}/students`,{student_id:created.body.id})).status,200);
+  assert.equal((await f.call(f.admin,'POST',`/classrooms/${f.room.id}/students`,{student_id:created.body.id})).status,200,'ya puede matricularse');
+  // El docente debe indicar uno de sus salones activos; el alumno queda matriculado.
+  const teacherBody = { ...body, username: 'teacher_made', require_password_change: false };
+  assert.equal((await f.call(f.t,'POST','/students',teacherBody)).status,400);
+  assert.equal((await f.call(f.t,'POST','/students',{ ...teacherBody, classroom_id: f.otherRoom.id })).status,404);
+  const mine = await f.call(f.t,'POST','/students',{ ...teacherBody, classroom_id: f.room.id });
+  assert.equal(mine.status,201); assert.ok(f.enrollments.has(f.room.id + ':' + mine.body.id));
+  assert.equal(f.users.find(u=>u.id===mine.body.id).must_change_password,false);
+  assert.equal((await f.call(f.t,'GET','/students')).body.some(s=>s.id===mine.body.id),true);
+  assert.equal((await f.call(f.t,'PATCH',`/classrooms/${f.room.id}`,{status:'archived'})).status,200);
+  assert.equal((await f.call(f.t,'POST','/students',{ ...teacherBody, username:'late_student', classroom_id: f.room.id })).status,400,'salón archivado');
+}));
+
+test('teachers reset passwords of their own students and administrators of any account; old sessions stop working', () => withFixture(async f => {
+  const NEW = 'nueva-clave-segura-1';
+  const before = await f.call(f.a,'GET','/projects'); assert.equal(before.status,200);
+  assert.equal((await f.call(f.a,'POST',`/users/${f.b.id}/password`,{password:NEW})).status,403,'un alumno no restablece');
+  assert.equal((await f.call(f.t,'POST',`/users/${f.a.id}/password`,{password:'corta'})).status,400);
+  assert.equal((await f.call(f.t,'POST',`/users/${f.b.id}/password`,{password:NEW})).status,404,'alumno de otro salón');
+  assert.equal((await f.call(f.t,'POST',`/users/${f.other.id}/password`,{password:NEW})).status,404,'otro docente');
+  assert.equal((await f.call(f.t,'POST',`/users/${f.a.id}/password`,{password:NEW,require_password_change:false})).status,204);
+  const student = f.users.find(u=>u.id===f.a.id);
+  assert.ok(await bcrypt.compare(NEW, student.password_hash)); assert.equal(student.must_change_password,false);
+  assert.equal((await f.call(f.a,'GET','/projects')).status,401,'la sesión anterior se invalida');
+  assert.equal((await f.call(f.admin,'POST',`/users/${f.other.id}/password`,{password:NEW})).status,204);
+  assert.equal(f.users.find(u=>u.id===f.other.id).must_change_password,true);
+  assert.equal((await f.call(f.admin,'POST',`/users/${randomUUID()}/password`,{password:NEW})).status,404);
 }));
 
 test('only administrators manage teacher accounts and teachers must change their initial password', () => withFixture(async f => {
@@ -203,6 +234,9 @@ test('classrooms validate catalog, real dates and teacher assignment; outsiders 
   assert.equal((await f.call(f.t,'POST','/classrooms',{...body,level_id:99})).status,400);
   const created=await f.call(f.t,'POST','/classrooms',body);
   assert.equal(created.status,201); assert.equal(created.body.teacher_id,f.t.id);
+  const { course_id, ...noCourse } = body;
+  const withoutCourse=await f.call(f.t,'POST','/classrooms',{...noCourse,name:'Sin curso'});
+  assert.equal(withoutCourse.status,201,'el curso es opcional'); assert.equal(withoutCourse.body.course_id,undefined);
   assert.deepEqual((await f.call(f.t,'GET',`/classrooms/${created.body.id}/eligible-students`)).body.map(s=>s.id),[f.a.id]);
   assert.equal((await f.call(f.other,'GET',`/classrooms/${created.body.id}/eligible-students`)).status,404);
   assert.equal((await f.call(f.admin,'POST','/classrooms',body)).status,400,'admin must assign a valid teacher');

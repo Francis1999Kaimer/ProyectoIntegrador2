@@ -47,10 +47,11 @@ async function runBody({ labels = ['A', 'B'], counts = [10, 10], percent = 20, c
 
 /** Doble en memoria de las tablas character_labs y training_runs de Prisma. */
 function trainingDb() {
-  const labs = new Map(), runs = []
+  const labs = new Map(), runs = [], rooms = new Map()
   const pick = (row, select) => row && select ? Object.fromEntries(Object.keys(select).map(key => [key, row[key]])) : row
   const second = () => new Date(Math.floor(Date.now() / 1000) * 1000)
   const db = {
+    classrooms: { findUnique: async ({ where }) => rooms.get(where.id) ?? null },
     character_labs: {
       findUnique: async ({ where, select }) => pick(labs.get(where.project_id) ?? null, select),
       create: async ({ data }) => {
@@ -79,7 +80,7 @@ function trainingDb() {
     }
   }
   db.$transaction = async fn => fn(db)
-  return { db, labs, runs }
+  return { db, labs, runs, rooms }
 }
 
 module.exports = { datasetZip, datasetBody, modelBase64, runBody, trainingDb, testCount }

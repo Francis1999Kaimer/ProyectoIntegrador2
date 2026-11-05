@@ -41,27 +41,24 @@ async function main() {
   }, 201);
   roomId = room.id;
   assert.equal(room.teacher_id, teacher.id);
-  stage = 'alta sintetica, consentimiento y activacion';
+  stage = 'alta sintetica con autorizacion del tutor';
   const firstPassword = randomBytes(24).toString('hex');
   const nextPassword = randomBytes(24).toString('hex');
   const username = 'aiblocks_h6_' + run;
   const student = await call('POST', '/students', adminToken, {
-    username, display_name: 'Alumno sintetico APF2 ' + run, password: firstPassword
+    username, display_name: 'Alumno sintetico APF2 ' + run, password: firstPassword,
+    guardian_authorized: true, guardian_name: 'Tutor SINTETICO de prueba APF2'
   }, 201);
   studentId = student.id;
-  assert.equal(student.status, 'pending');
+  // Alta en un paso: la casilla del tutor queda como consentimiento y la cuenta nace activa.
+  assert.equal(student.status, 'active');
   assert.equal(student.password_hash, undefined);
-  await call('PATCH', '/students/' + studentId + '/status', adminToken, { status: 'active' }, 409);
-  await call('POST', '/students/' + studentId + '/consents', adminToken, {
-    guardian_name: 'Tutor SINTETICO de prueba APF2', consent_version: 'synthetic-test-v1'
-  }, 201);
-  await call('PATCH', '/students/' + studentId + '/status', adminToken, { status: 'active' });
   studentToken = await login(username, firstPassword);
   await call('GET', '/projects', studentToken, undefined, 403);
   await call('POST', '/auth/change-password', studentToken, { current_password: firstPassword, new_password: nextPassword });
   await call('GET', '/auth/me', studentToken, undefined, 401);
   studentToken = await login(username, nextPassword);
-  console.log('PASS: alumno sintetico, consentimiento, activacion y cambio de clave persistido; JWT anterior -> 401.');
+  console.log('PASS: alumno sintetico activo con autorizacion del tutor y cambio de clave persistido; JWT anterior -> 401.');
   stage = 'matricula y permisos';
   const enrollPath = '/classrooms/' + roomId + '/students';
   await call('POST', enrollPath, teacherToken, { student_id: studentId });

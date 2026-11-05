@@ -1,5 +1,5 @@
 import { Transform, Type } from 'class-transformer';
-import { IsEmail, IsIn, IsInt, IsObject, IsString, IsUUID, Length, Matches, Max, Min, ValidateIf } from 'class-validator';
+import { Equals, IsBoolean, IsEmail, IsIn, IsInt, IsObject, IsString, IsUUID, Length, Matches, Max, Min, ValidateIf } from 'class-validator';
 
 const trim = ({ value }: { value: unknown }) => typeof value === 'string' ? value.trim() : value;
 // Optional means absent, not null: null must not bypass PATCH validation.
@@ -8,12 +8,23 @@ export class PageDto {
   @ValidateIf(present) @Type(() => Number) @IsInt() @Min(1) @Max(100) limit?: number;
   @ValidateIf(present) @Type(() => Number) @IsInt() @Min(0) @Max(1000000) offset?: number;
 }
-export class StudentDto {
+export class TeacherDto {
   @IsString() @Matches(/^[A-Za-z0-9_.-]{3,64}$/) username!: string;
   @Transform(trim) @IsString() @Length(1, 120) display_name!: string;
   @IsString() @Length(12, 72) password!: string;
 }
-export class TeacherDto extends StudentDto {}
+// Alta del alumno en un paso: la casilla de autorización del tutor es obligatoria
+// y queda registrada como consentimiento. El docente debe indicar su salón.
+export class StudentDto extends TeacherDto {
+  @Equals(true, { message: 'Confirma la autorización del padre, madre o tutor.' }) guardian_authorized!: boolean;
+  @ValidateIf(present) @Transform(trim) @IsString() @Length(1, 120) guardian_name?: string;
+  @ValidateIf(present) @IsUUID('4') classroom_id?: string;
+  @ValidateIf(present) @IsBoolean() require_password_change?: boolean;
+}
+export class PasswordResetDto {
+  @IsString() @Length(12, 72) password!: string;
+  @ValidateIf(present) @IsBoolean() require_password_change?: boolean;
+}
 export class StudentStatusDto { @IsIn(['pending', 'active', 'suspended']) status!: string; }
 export class TeacherStatusDto { @IsIn(['active', 'suspended']) status!: string; }
 export class ConsentDto {
@@ -24,7 +35,7 @@ export class ConsentDto {
 export class ClassroomDto {
   @ValidateIf(present) @IsUUID('4') teacher_id?: string;
   @Type(() => Number) @IsInt() @Min(1) @Max(65535) level_id!: number;
-  @IsUUID('4') course_id!: string;
+  @ValidateIf(present) @IsUUID('4') course_id?: string;
   @Transform(trim) @IsString() @Length(1, 120) name!: string;
   @ValidateIf(present) @Transform(trim) @IsString() @Length(1, 180) school_name?: string;
   @IsInt() @Min(2000) @Max(2100) academic_year!: number;

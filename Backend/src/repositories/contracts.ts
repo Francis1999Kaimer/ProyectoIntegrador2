@@ -17,7 +17,7 @@ export interface Workspace {
   created_at: Date; updated_at: Date;
 }
 export interface Classroom {
-  id: string; teacher_id: string; level_id: number; course_id: string;
+  id: string; teacher_id: string; level_id: number; course_id: string | null;
   name: string; school_name: string | null; academic_year: number;
   course_start_date: Date; status: string; created_at: Date; updated_at: Date;
 }

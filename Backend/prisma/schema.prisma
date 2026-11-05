@@ -24,25 +24,28 @@ model levels {
 }
 
 model users {
-  id                                 String                  @id @db.Char(36)
-  username                           String                  @db.VarChar(64)
-  email                              String?                 @db.VarChar(191)
-  password_hash                      String                  @db.VarChar(255)
-  role                               String                  @db.VarChar(16)
-  status                             String                  @default("pending") @db.VarChar(16)
-  display_name                       String                  @db.VarChar(120)
-  must_change_password               Boolean                 @default(true)
-  last_login_at                      DateTime?               @db.DateTime(0)
-  created_at                         DateTime                @default(now()) @db.DateTime(0)
-  updated_at                         DateTime                @default(now()) @db.DateTime(0)
-  back_fk_classrooms_teacher         classrooms[]            @relation("fk_classrooms_teacher")
-  back_fk_enrollments_student        classroom_enrollments[] @relation("fk_enrollments_student")
-  back_fk_guardian_consents_student  guardian_consents[]     @relation("fk_guardian_consents_student")
-  back_fk_projects_owner             projects[]              @relation("fk_projects_owner")
-  back_fk_simulation_runs_user       simulation_runs[]       @relation("fk_simulation_runs_user")
-  back_fk_lesson_progress_student    lesson_progress[]       @relation("fk_lesson_progress_student")
-  back_fk_challenge_attempts_student challenge_attempts[]    @relation("fk_challenge_attempts_student")
-  back_fk_audit_logs_actor           audit_logs[]            @relation("fk_audit_logs_actor")
+  id                                 String                   @id @db.Char(36)
+  username                           String                   @db.VarChar(64)
+  email                              String?                  @db.VarChar(191)
+  password_hash                      String                   @db.VarChar(255)
+  role                               String                   @db.VarChar(16)
+  status                             String                   @default("pending") @db.VarChar(16)
+  display_name                       String                   @db.VarChar(120)
+  must_change_password               Boolean                  @default(true)
+  last_login_at                      DateTime?                @db.DateTime(0)
+  created_at                         DateTime                 @default(now()) @db.DateTime(0)
+  updated_at                         DateTime                 @default(now()) @db.DateTime(0)
+  back_fk_classrooms_teacher         classrooms[]             @relation("fk_classrooms_teacher")
+  back_fk_enrollments_student        classroom_enrollments[]  @relation("fk_enrollments_student")
+  back_fk_guardian_consents_student  guardian_consents[]      @relation("fk_guardian_consents_student")
+  back_fk_projects_owner             projects[]               @relation("fk_projects_owner")
+  back_fk_simulation_runs_user       simulation_runs[]        @relation("fk_simulation_runs_user")
+  back_fk_lesson_progress_student    lesson_progress[]        @relation("fk_lesson_progress_student")
+  back_fk_challenge_attempts_student challenge_attempts[]     @relation("fk_challenge_attempts_student")
+  back_fk_audit_logs_actor           audit_logs[]             @relation("fk_audit_logs_actor")
+  back_fk_assignments_creator        assignments[]            @relation("fk_assignments_creator")
+  back_fk_submissions_student        assignment_submissions[] @relation("fk_submissions_student")
+  back_fk_submissions_grader         assignment_submissions[] @relation("fk_submissions_grader")
 
   @@unique([username], map: "uq_users_username")
   @@unique([email], map: "uq_users_email")
@@ -103,7 +106,7 @@ model classrooms {
   id                                     String                  @id @db.Char(36)
   teacher_id                             String                  @db.Char(36)
   level_id                               Int                     @db.UnsignedSmallInt
-  course_id                              String                  @db.Char(36)
+  course_id                              String?                 @db.Char(36)
   name                                   String                  @db.VarChar(120)
   school_name                            String?                 @db.VarChar(180)
   academic_year                          Int                     @db.UnsignedSmallInt
@@ -113,10 +116,11 @@ model classrooms {
   updated_at                             DateTime                @default(now()) @db.DateTime(0)
   rel_fk_classrooms_teacher              users                   @relation("fk_classrooms_teacher", fields: [teacher_id], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_classrooms_teacher")
   rel_fk_classrooms_level                levels                  @relation("fk_classrooms_level", fields: [level_id], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_classrooms_level")
-  rel_fk_classrooms_course               courses                 @relation("fk_classrooms_course", fields: [course_id], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_classrooms_course")
+  rel_fk_classrooms_course               courses?                @relation("fk_classrooms_course", fields: [course_id], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_classrooms_course")
   back_fk_enrollments_classroom          classroom_enrollments[] @relation("fk_enrollments_classroom")
   back_fk_projects_classroom             projects[]              @relation("fk_projects_classroom")
   back_fk_classroom_challenges_classroom classroom_challenges[]  @relation("fk_classroom_challenges_classroom")
+  back_fk_assignments_classroom          assignments[]           @relation("fk_assignments_classroom")
 
   @@index([teacher_id, status], map: "ix_classrooms_teacher_status")
   @@index([level_id], map: "ix_classrooms_level")
@@ -149,19 +153,20 @@ model guardian_consents {
 }
 
 model projects {
-  id                         String      @id @db.Char(36)
-  owner_id                   String      @db.Char(36)
-  classroom_id               String?     @db.Char(36)
-  title                      String      @db.VarChar(180)
-  project_type               String      @db.VarChar(40)
-  status                     String      @default("draft") @db.VarChar(16)
-  created_at                 DateTime    @default(now()) @db.DateTime(0)
-  updated_at                 DateTime    @default(now()) @db.DateTime(0)
-  rel_fk_projects_owner      users       @relation("fk_projects_owner", fields: [owner_id], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_projects_owner")
-  rel_fk_projects_classroom  classrooms? @relation("fk_projects_classroom", fields: [classroom_id], references: [id], onDelete: SetNull, onUpdate: Restrict, map: "fk_projects_classroom")
-  back_fk_workspaces_project workspaces? @relation("fk_workspaces_project")
-  back_fk_character_lab_project character_labs? @relation("fk_character_labs_project")
-  back_fk_training_runs_project training_runs[] @relation("fk_training_runs_project")
+  id                            String                   @id @db.Char(36)
+  owner_id                      String                   @db.Char(36)
+  classroom_id                  String?                  @db.Char(36)
+  title                         String                   @db.VarChar(180)
+  project_type                  String                   @db.VarChar(40)
+  status                        String                   @default("draft") @db.VarChar(16)
+  created_at                    DateTime                 @default(now()) @db.DateTime(0)
+  updated_at                    DateTime                 @default(now()) @db.DateTime(0)
+  rel_fk_projects_owner         users                    @relation("fk_projects_owner", fields: [owner_id], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_projects_owner")
+  rel_fk_projects_classroom     classrooms?              @relation("fk_projects_classroom", fields: [classroom_id], references: [id], onDelete: SetNull, onUpdate: Restrict, map: "fk_projects_classroom")
+  back_fk_workspaces_project    workspaces?              @relation("fk_workspaces_project")
+  back_fk_character_lab_project character_labs?          @relation("fk_character_labs_project")
+  back_fk_training_runs_project training_runs[]          @relation("fk_training_runs_project")
+  back_fk_submissions_project   assignment_submissions[] @relation("fk_submissions_project")
 
   @@index([owner_id, updated_at], map: "ix_projects_owner_updated")
   @@index([classroom_id], map: "ix_projects_classroom")
@@ -171,38 +176,38 @@ model projects {
 // conserva por compatibilidad). Los archivos se guardan como BLOB privados en
 // MySQL para que el trabajo se pueda abrir en otro equipo.
 model character_labs {
-  project_id             String    @id @db.Char(36)
-  dataset_file_name      String    @db.VarChar(180)
-  dataset_content_type   String    @db.VarChar(80)
-  dataset_bytes          Bytes     @db.LongBlob
-  dataset_labels_json    String    @db.LongText
-  dataset_samples        Int       @db.UnsignedInt
-  dataset_counts_json    String?   @db.LongText
-  dataset_updated_at     DateTime  @default(now()) @db.DateTime(0)
-  dataset_locked_at      DateTime? @db.DateTime(0)
-  test_percent           Int?      @db.UnsignedTinyInt
-  split_seed             Int?      @db.UnsignedInt
-  training_config_json   String?   @db.LongText
-  model_file_name        String?   @db.VarChar(180)
-  model_content_type     String?   @db.VarChar(80)
-  model_bytes            Bytes?    @db.LongBlob
-  training_metrics_json  String?   @db.LongText
-  training_updated_at    DateTime? @db.DateTime(0)
-  rel_fk_character_labs_project projects @relation("fk_character_labs_project", fields: [project_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_character_labs_project")
+  project_id                    String    @id @db.Char(36)
+  dataset_file_name             String    @db.VarChar(180)
+  dataset_content_type          String    @db.VarChar(80)
+  dataset_bytes                 Bytes     @db.LongBlob
+  dataset_labels_json           String    @db.LongText
+  dataset_samples               Int       @db.UnsignedInt
+  dataset_counts_json           String?   @db.LongText
+  dataset_updated_at            DateTime  @default(now()) @db.DateTime(0)
+  dataset_locked_at             DateTime? @db.DateTime(0)
+  test_percent                  Int?      @db.UnsignedTinyInt
+  split_seed                    Int?      @db.UnsignedInt
+  training_config_json          String?   @db.LongText
+  model_file_name               String?   @db.VarChar(180)
+  model_content_type            String?   @db.VarChar(80)
+  model_bytes                   Bytes?    @db.LongBlob
+  training_metrics_json         String?   @db.LongText
+  training_updated_at           DateTime? @db.DateTime(0)
+  rel_fk_character_labs_project projects  @relation("fk_character_labs_project", fields: [project_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_character_labs_project")
 }
 
 // Historial de entrenamientos: configuración, hardware y métricas de cada uno.
 // El modelo del último entrenamiento se guarda en character_labs.
 model training_runs {
-  id            String   @id @db.Char(36)
-  project_id    String   @db.Char(36)
-  run_number    Int      @db.UnsignedInt
-  config_json   String   @db.LongText
-  hardware_json String   @db.LongText
-  history_json  String   @db.LongText
-  metrics_json  String   @db.LongText
-  duration_ms   Int      @db.UnsignedInt
-  created_at    DateTime @default(now()) @db.DateTime(0)
+  id                           String   @id @db.Char(36)
+  project_id                   String   @db.Char(36)
+  run_number                   Int      @db.UnsignedInt
+  config_json                  String   @db.LongText
+  hardware_json                String   @db.LongText
+  history_json                 String   @db.LongText
+  metrics_json                 String   @db.LongText
+  duration_ms                  Int      @db.UnsignedInt
+  created_at                   DateTime @default(now()) @db.DateTime(0)
   rel_fk_training_runs_project projects @relation("fk_training_runs_project", fields: [project_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_training_runs_project")
 
   @@unique([project_id, run_number], map: "ux_training_runs_project_number")
@@ -340,4 +345,50 @@ model audit_logs {
   @@index([actor_id, occurred_at], map: "ix_audit_logs_actor_date")
   @@index([entity_type, entity_id, occurred_at], map: "ix_audit_logs_entity_date")
   @@index([occurred_at], map: "ix_audit_logs_occurred")
+}
+
+// Tareas del salón: el docente define la consigna, las fechas y el rango de notas.
+model assignments {
+  id                             String                   @id @db.Char(36)
+  classroom_id                   String                   @db.Char(36)
+  created_by                     String                   @db.Char(36)
+  title                          String                   @db.VarChar(180)
+  description                    String                   @db.Text
+  instructions                   String                   @db.Text
+  starts_at                      DateTime                 @db.DateTime(0)
+  ends_at                        DateTime                 @db.DateTime(0)
+  grade_min                      Decimal                  @db.Decimal(5, 1)
+  grade_max                      Decimal                  @db.Decimal(5, 1)
+  created_at                     DateTime                 @default(now()) @db.DateTime(0)
+  updated_at                     DateTime                 @default(now()) @db.DateTime(0)
+  rel_fk_assignments_classroom   classrooms               @relation("fk_assignments_classroom", fields: [classroom_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_assignments_classroom")
+  rel_fk_assignments_creator     users                    @relation("fk_assignments_creator", fields: [created_by], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_assignments_creator")
+  back_fk_submissions_assignment assignment_submissions[] @relation("fk_submissions_assignment")
+
+  @@index([classroom_id, ends_at], map: "ix_assignments_classroom_end")
+  @@index([created_by], map: "ix_assignments_creator")
+}
+
+// Entrega de un alumno: un proyecto suyo del salón; una por alumno y tarea.
+model assignment_submissions {
+  id                            String      @id @db.Char(36)
+  assignment_id                 String      @db.Char(36)
+  student_id                    String      @db.Char(36)
+  project_id                    String      @db.Char(36)
+  run_number                    Int?        @db.UnsignedInt
+  comment                       String?     @db.Text
+  submitted_at                  DateTime    @db.DateTime(0)
+  grade                         Decimal?    @db.Decimal(5, 1)
+  feedback                      String?     @db.Text
+  graded_at                     DateTime?   @db.DateTime(0)
+  graded_by                     String?     @db.Char(36)
+  rel_fk_submissions_assignment assignments @relation("fk_submissions_assignment", fields: [assignment_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_submissions_assignment")
+  rel_fk_submissions_student    users       @relation("fk_submissions_student", fields: [student_id], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_submissions_student")
+  rel_fk_submissions_project    projects    @relation("fk_submissions_project", fields: [project_id], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_submissions_project")
+  rel_fk_submissions_grader     users?      @relation("fk_submissions_grader", fields: [graded_by], references: [id], onDelete: SetNull, onUpdate: Restrict, map: "fk_submissions_grader")
+
+  @@unique([assignment_id, student_id], map: "ux_submissions_assignment_student")
+  @@index([student_id], map: "ix_submissions_student")
+  @@index([project_id], map: "ix_submissions_project")
+  @@index([graded_by], map: "ix_submissions_grader")
 }

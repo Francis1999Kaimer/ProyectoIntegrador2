@@ -153,7 +153,14 @@ export class TrainingService {
   private async writable(actor: Actor, projectId: string) {
     const project = await this.learning.project(actor, projectId, true);
     if (project.status === 'archived') throw new BadRequestException('El proyecto está archivado.');
+    if (!await this.classroomOpen(project)) throw new BadRequestException('El salón está archivado.');
     return project;
+  }
+  /** Un proyecto de un salón archivado queda en solo lectura. */
+  private async classroomOpen(project: Project) {
+    if (!project.classroom_id) return true;
+    const room = await this.db.classrooms.findUnique({ where: { id: project.classroom_id }, select: { status: true } });
+    return !room || room.status === 'active';
   }
   private lab(projectId: string): Promise<LabMeta | null> {
     return this.db.character_labs.findUnique({ where: { project_id: projectId }, select: META }) as Promise<LabMeta | null>;
@@ -260,7 +267,7 @@ export class TrainingService {
   private async view(actor: Actor, project: Project) {
     const lab = await this.lab(project.id);
     const runs = lab ? await this.db.training_runs.findMany({ where: { project_id: project.id }, orderBy: { run_number: 'asc' } }) as RunRow[] : [];
-    const owner = project.owner_id === actor.id, editable = owner && project.status !== 'archived';
+    const owner = project.owner_id === actor.id, editable = owner && project.status !== 'archived' && await this.classroomOpen(project);
     const status = lab ? await this.status(lab, project.project_type) : null;
     const locked = !!lab?.dataset_locked_at;
     let step = 1;

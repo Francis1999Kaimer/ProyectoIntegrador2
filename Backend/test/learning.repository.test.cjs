@@ -68,8 +68,9 @@ test('activation and enrollment require consent inside serializable transactions
 
 test('Prisma writes map uniqueness, FK and concurrent-transaction conflicts to domain errors',async()=>{
   for(const code of ['P2002','P2003','P2034']){
-    const repo=new PrismaLearningRepository({users:{create:async()=>{throw {code};}}});
-    await assert.rejects(repo.createStudent({username:'x',display_name:'x',password_hash:'hash'}),DataConflict);
+    const tx={users:{create:async()=>{throw {code};}}};
+    const repo=new PrismaLearningRepository({$transaction:async fn=>fn(tx)});
+    await assert.rejects(repo.createStudent({username:'x',display_name:'x',password_hash:'hash',must_change_password:true,guardian_name:'Tutor',consent_version:'v1'}),DataConflict);
   }
 });
 

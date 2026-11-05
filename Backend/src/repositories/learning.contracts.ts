@@ -6,9 +6,12 @@ export interface Student { id: string; username: string; display_name: string; s
 export interface Teacher { id: string; username: string; display_name: string; status: string; }
 export interface ConsentSummary { guardian_name: string; consent_version: string; consented_at: Date; }
 export interface NewStudent { username: string; display_name: string; password_hash: string; }
+// El alumno se crea activo con su consentimiento registrado y, si se indica, matriculado.
+export interface NewStudentAccount extends NewStudent { must_change_password: boolean; guardian_name: string; consent_version: string; classroom_id?: string; }
+export interface Account { id: string; role: string; status: string; }
 export interface ConsentInput { guardian_name: string; consent_version: string; guardian_contact_email?: string; }
 export interface NewClassroom {
-  teacher_id: string; level_id: number; course_id: string; name: string;
+  teacher_id: string; level_id: number; course_id?: string | null; name: string;
   academic_year: number; course_start_date: Date; school_name?: string;
 }
 export interface ClassroomPatch { name?: string; school_name?: string; status?: string; }
@@ -32,7 +35,9 @@ export interface LearningRepository {
   listTeachers(page: PageRequest): Promise<Teacher[]>;
   student(id: string): Promise<Student | null>;
   teacherHasStudent(teacherId: string, studentId: string): Promise<boolean>;
-  createStudent(input: NewStudent): Promise<Student>;
+  createStudent(input: NewStudentAccount): Promise<Student>;
+  account(id: string): Promise<Account | null>;
+  resetPassword(id: string, passwordHash: string, mustChange: boolean): Promise<void>;
   createTeacher(input: NewStudent): Promise<Teacher>;
   setStudentStatus(id: string, status: string): Promise<Student>;
   setTeacherStatus(id: string, status: string): Promise<Teacher>;
@@ -40,7 +45,7 @@ export interface LearningRepository {
   currentConsent(id: string): Promise<ConsentSummary | null>;
   revokeConsent(id: string): Promise<void>;
   validTeacher(id: string): Promise<boolean>;
-  validCatalog(levelId: number, courseId: string): Promise<boolean>;
+  validCatalog(levelId: number, courseId?: string | null): Promise<boolean>;
   listClassrooms(actor: Actor, page: PageRequest): Promise<Classroom[]>;
   classroom(id: string): Promise<Classroom | null>;
   enrolled(classroomId: string, studentId: string): Promise<boolean>;

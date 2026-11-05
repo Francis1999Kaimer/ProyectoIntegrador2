@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, Header, HttpCode, Param, ParseUUIDPipe, 
 import { AuthRequest, Roles } from '../auth/auth.policy';
 import { LearningService } from './learning.service';
 import { ApiErrorFilter } from './api-error.filter';
-import { ClassroomDto, ClassroomPatchDto, ConsentDto, EnrollmentDto, PageDto, ProgressDto, ProjectDto, ProjectPatchDto, ProjectDraftDto, StudentDto, StudentStatusDto, TeacherDto, TeacherStatusDto, WorkspaceDto } from './learning.dto';
+import { ClassroomDto, ClassroomPatchDto, ConsentDto, EnrollmentDto, PageDto, PasswordResetDto, ProgressDto, ProjectDto, ProjectPatchDto, ProjectDraftDto, StudentDto, StudentStatusDto, TeacherDto, TeacherStatusDto, WorkspaceDto } from './learning.dto';
 
 const uuid = new ParseUUIDPipe({ version: '4' });
 @Controller() @UseFilters(ApiErrorFilter) @Roles('student', 'teacher', 'admin')
@@ -12,8 +12,10 @@ export class LearningController {
   catalog() { return this.service.catalog(); }
   @Get('students') @Roles('teacher', 'admin') @Header('Cache-Control', 'no-store')
   students(@Req() req: AuthRequest, @Query() page: PageDto) { return this.service.students(req.user!, page); }
-  @Post('students') @Roles('admin') @Header('Cache-Control', 'no-store')
-  createStudent(@Body() body: StudentDto) { return this.service.createStudent(body); }
+  @Post('students') @Roles('teacher', 'admin') @Header('Cache-Control', 'no-store')
+  createStudent(@Req() req: AuthRequest, @Body() body: StudentDto) { return this.service.createStudent(req.user!, body); }
+  @Post('users/:id/password') @Roles('teacher', 'admin') @HttpCode(204)
+  resetPassword(@Req() req: AuthRequest, @Param('id', uuid) id: string, @Body() body: PasswordResetDto) { return this.service.resetPassword(req.user!, id, body); }
   @Patch('students/:id/status') @Roles('admin') @Header('Cache-Control', 'no-store')
   studentStatus(@Param('id', uuid) id: string, @Body() body: StudentStatusDto) { return this.service.studentStatus(id, body.status); }
   @Post('students/:id/consents') @Roles('admin') @Header('Cache-Control', 'no-store')
