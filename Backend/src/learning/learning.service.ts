@@ -1,9 +1,9 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { PasswordService } from '../auth/password.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PageRequest, Project, SimulationRun, Workspace } from '../repositories/contracts';
 import { Actor, LEARNING_REPOSITORY, LearningRepository } from '../repositories/learning.contracts';
-import { CharacterDatasetDto, CharacterTrainingDto, ClassroomDto, ClassroomPatchDto, ConsentDto, ProjectDto, ProjectPatchDto, ProjectWithDatasetDto, StudentDto, TeacherDto, WorkspaceDto } from './learning.dto';
+import { CharacterDatasetDto, CharacterTrainingDto, ClassroomDto, ClassroomPatchDto, ConsentDto, ProjectDto, ProjectPatchDto, ProjectWithDatasetDto, ProjectDraftDto, InitialDatasetDto, StudentDto, TeacherDto, WorkspaceDto } from './learning.dto';
 import { simulatePedagogically } from './pedagogical-simulation';
 
 @Injectable()
@@ -92,6 +92,43 @@ export class LearningService {
       if (room.status !== 'active') throw new BadRequestException('El salón está archivado.');
     }
     return this.repo.createProject(actor.id, input);
+  }
+  async createProjectDraft(actor: Actor, input: ProjectDraftDto) {
+    if (input.classroom_id) {
+      const room = await this.classroom(actor, input.classroom_id);
+      if (room.status !== 'active') throw new BadRequestException('El salón está archivado.');
+    }
+    const findExisting = async () => {
+      const existing = await this.db.projects.findUnique({ where: { id: input.request_id } });
+      if (!existing || existing.owner_id !== actor.id || existing.title !== input.title ||
+          existing.project_type !== input.project_type || existing.classroom_id !== (input.classroom_id ?? null))
+        throw new ConflictException('No se pudo repetir la creación.');
+      return existing;
+    };
+    const current = await this.db.projects.findUnique({ where: { id: input.request_id } });
+    if (current) return findExisting();
+    try {
+      return await this.db.projects.create({ data: { id: input.request_id, owner_id: actor.id, title: input.title, project_type: input.project_type, classroom_id: input.classroom_id ?? null } });
+    } catch (error) {
+      if ((error as {code?: string})?.code === 'P2002') return findExisting();
+      throw error;
+    }
+  }
+  async saveInitialDataset(actor: Actor, projectId: string, input: InitialDatasetDto) {
+    const project = await this.project(actor, projectId, true);
+    if (project.status === 'archived') throw new BadRequestException('El proyecto está archivado.');
+    if (project.project_type === 'character_recognition' && input.samples < 12) throw new BadRequestException('Se necesitan al menos 12 imágenes para caracteres.');
+    const labels = this.labels(input.labels), bytes = this.archive(input.archive_base64, 'El dataset');
+    try {
+      const row = await this.db.character_labs.create({ data: {
+        project_id: projectId, dataset_file_name: input.file_name, dataset_content_type: input.content_type,
+        dataset_bytes: bytes, dataset_labels_json: JSON.stringify(labels), dataset_samples: input.samples
+      } });
+      return this.labView(row);
+    } catch (error) {
+      if ((error as {code?: string})?.code === 'P2002') throw new ConflictException('Este proyecto ya tiene un dataset. Actualiza la página.');
+      throw error;
+    }
   }
   async createProjectWithDataset(actor: Actor, input: ProjectWithDatasetDto) {
     if (input.classroom_id) {
