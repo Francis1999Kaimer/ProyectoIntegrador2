@@ -26,7 +26,7 @@ export async function validateDatasetZip(file: Blob, type: DatasetType): Promise
     if (parts.length !== 2 || parts.some(part => !part.trim() || part === '.' || part === '..')) throw new Error('Cada archivo debe estar directamente dentro de una carpeta de categoría, sin subcarpetas ni archivos sueltos: categoría/archivo.')
     const [label, name] = parts
     if (label.trim() !== label || label.length > 80) throw new Error('Los nombres de categorías deben tener entre 1 y 80 caracteres y no llevar espacios al inicio o final.')
-    const supported = type === 'sounds' ? /\\.wav$/i : /\\.(png|jpe?g)$/i
+    const supported = type === 'sounds' ? /\.wav$/i : /\.(png|jpe?g)$/i
     if (!supported.test(name)) throw new Error(`Archivo no permitido: ${entry.name}. ${type === 'sounds' ? 'Usa solo archivos WAV.' : 'Usa solo imágenes PNG o JPG.'}`)
     const info = (entry as unknown as { _data?: { uncompressedSize?: number } })._data
     const size = info?.uncompressedSize
