@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, Header, HttpCode, Param, ParseUUIDPipe, 
 import { AuthRequest, Roles } from '../auth/auth.policy';
 import { LearningService } from './learning.service';
 import { ApiErrorFilter } from './api-error.filter';
-import { CharacterDatasetDto, CharacterTrainingDto, ClassroomDto, ClassroomPatchDto, ConsentDto, EnrollmentDto, PageDto, ProgressDto, ProjectDto, ProjectPatchDto, StudentDto, StudentStatusDto, TeacherDto, TeacherStatusDto, WorkspaceDto } from './learning.dto';
+import { CharacterDatasetDto, CharacterTrainingDto, ClassroomDto, ClassroomPatchDto, ConsentDto, EnrollmentDto, PageDto, ProgressDto, ProjectDto, ProjectPatchDto, ProjectWithDatasetDto, StudentDto, StudentStatusDto, TeacherDto, TeacherStatusDto, WorkspaceDto } from './learning.dto';
 
 const uuid = new ParseUUIDPipe({ version: '4' });
 @Controller() @UseFilters(ApiErrorFilter) @Roles('student', 'teacher', 'admin')
@@ -52,6 +52,8 @@ export class LearningController {
   project(@Req() req: AuthRequest, @Param('id', uuid) id: string) { return this.service.project(req.user!, id); }
   @Post('projects') @Header('Cache-Control', 'no-store')
   createProject(@Req() req: AuthRequest, @Body() body: ProjectDto) { return this.service.createProject(req.user!, body); }
+  @Post('projects/with-dataset') @Header('Cache-Control', 'no-store')
+  createProjectWithDataset(@Req() req: AuthRequest, @Body() body: ProjectWithDatasetDto) { return this.service.createProjectWithDataset(req.user!, body); }
   @Patch('projects/:id') @Header('Cache-Control', 'no-store')
   updateProject(@Req() req: AuthRequest, @Param('id', uuid) id: string, @Body() body: ProjectPatchDto) { return this.service.updateProject(req.user!, id, body); }
   @Get('projects/:id/character-lab') @Header('Cache-Control', 'no-store')
