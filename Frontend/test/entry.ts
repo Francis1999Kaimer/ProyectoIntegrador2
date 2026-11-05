@@ -3,3 +3,5 @@ export { AuthProvider } from '../src/auth/AuthProvider'
 export { Gate } from '../src/Experience'
 export { api, getToken, setToken } from '../src/api/http'
 export { useProjectStore } from '../src/store/project'
+
+export { validateDatasetZip } from '../src/dataset-validation'
