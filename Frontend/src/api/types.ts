@@ -14,6 +14,6 @@ export interface FlowNode { id: string; position: { x: number; y: number }; data
 export interface FlowEdge { id: string; source: string; target: string }
 export interface SimulationMetrics { train_accuracy: number; validation_accuracy: number; precision: number; recall: number; f1: number; loss: number; epochs: number; confusion_matrix: number[][]; prediction: { label: string; confidence: number } }
 export interface Simulation { id: string; workspace_id: string; requested_by: string; workspace_version: number; provider: string; status: string; seed: number; created_at: string; accuracy: string | null; loss: string | null; parameters: { epochs: number; [key: string]: unknown }; metrics: SimulationMetrics | null }
-export const typeCodes: Record<string, string> = { 'Reconocimiento de caracteres': 'character_recognition' }
+export const typeCodes: Record<string, string> = { 'Reconocimiento de caracteres': 'character_recognition', 'Clasificador de imágenes': 'image_classification', 'Reconocedor de sonidos cortos': 'sound_recognition', 'Clasificador de gestos de la mano': 'hand_gesture_classification', 'Clasificador de posturas corporales': 'body_posture_classification', 'Clasificador de dibujos simples': 'drawing_classification' }
 export function typeLabel(code: string) { return Object.entries(typeCodes).find(([,value]) => value === code)?.[0] ?? code }
 export const statusLabels: Record<string, string> = { draft: 'Borrador', active: 'En progreso', completed: 'Completado', archived: 'Archivado', pending: 'Pendiente', suspended: 'Suspendido' }
