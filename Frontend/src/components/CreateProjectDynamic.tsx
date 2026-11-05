@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ArrowRight, Target } from 'lucide-react'
-import { Link } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { type Classroom } from '../api/types'
 import { useResource } from '../api/useResource'
 import { useProjectStore } from '../store/project'
@@ -16,6 +16,7 @@ const projectTypes = [
 ] as const
 
 export default function CreateProjectDynamic() {
+  const navigate = useNavigate()
   const { name, setName } = useProjectStore()
   const rooms = useResource<Classroom[]>('/classrooms?limit=100')
   const [classroom, setClassroom] = useState('')
@@ -59,7 +60,7 @@ export default function CreateProjectDynamic() {
         </div>
         <div className="actions wizard-actions">
           <Link className="secondary button-link" to="/">Cancelar</Link>
-          <button type="button" className="primary">Siguiente <ArrowRight size={17} /></button>
+          <button type="button" className="primary" disabled={!name.trim()} onClick={() => navigate('/crear/datos', { state: { name: name.trim(), classroom, type, title: selected.title } })}>Siguiente <ArrowRight size={17} /></button>
         </div>
       </section>
     </main>
