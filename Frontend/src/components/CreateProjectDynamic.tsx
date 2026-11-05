@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router'
 import { api } from '../api/http'
 import { type Classroom, type Project } from '../api/types'
 import { useResource } from '../api/useResource'
+import { useAuth } from '../auth/AuthProvider'
 import { useProjectStore } from '../store/project'
 import { ApiMessage, Header } from './AppShell'
 
@@ -18,6 +19,7 @@ const projectTypes = [
 
 export default function CreateProjectDynamic() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const { name, setName } = useProjectStore()
   const rooms = useResource<Classroom[]>('/classrooms?limit=100')
   const [classroom, setClassroom] = useState('')
@@ -30,11 +32,19 @@ export default function CreateProjectDynamic() {
     if (!name.trim() || sending.current) return
     const codes: Record<string, string> = { characters: 'character_recognition', images: 'image_classification', sounds: 'sound_recognition', hands: 'hand_gesture_classification', postures: 'body_posture_classification', drawings: 'drawing_classification' }
     const body = { title: name.trim(), project_type: codes[type], ...(classroom ? { classroom_id: classroom } : {}) }
-    const signature = JSON.stringify(body)
-    if (!pending.current || pending.current.signature !== signature) pending.current = { signature, id: crypto.randomUUID() }
+    const signature = JSON.stringify(body), storageKey = 'aiblocks.pending-project.' + (user?.id ?? '')
+    if (!pending.current || pending.current.signature !== signature) {
+      try {
+        const stored = JSON.parse(sessionStorage.getItem(storageKey) ?? 'null')
+        if (stored?.signature === signature && typeof stored.id === 'string') pending.current = stored
+      } catch { /* Continue with in-memory retry protection. */ }
+      if (!pending.current || pending.current.signature !== signature) pending.current = { signature, id: crypto.randomUUID() }
+    }
+    try { sessionStorage.setItem(storageKey, JSON.stringify(pending.current)) } catch { /* Storage may be disabled. */ }
     sending.current = true; setBusy(true); setError('')
     try {
       const project = await api.request<Project>('/projects/draft', { method: 'POST', body: { ...body, request_id: pending.current.id } })
+      try { sessionStorage.removeItem(storageKey) } catch { /* Storage may be disabled. */ }
       useProjectStore.getState().select(project)
       navigate('/crear/datos?project=' + encodeURIComponent(project.id))
     } catch (e) { setError((e as Error).message) }
