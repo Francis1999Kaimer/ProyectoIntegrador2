@@ -10,4 +10,5 @@ import './carbon-friendly.css'
 import './dynamic-project.css'
 import './responsive.css'
 import './connected.css'
+import './training.css'
 createRoot(document.getElementById('root')!).render(<StrictMode><BrowserRouter><AuthProvider><Gate/></AuthProvider></BrowserRouter></StrictMode>)

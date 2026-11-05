@@ -1,33 +1,30 @@
 import { type ReactNode } from 'react'
-import { Link, Navigate, useLocation } from 'react-router'
+import { Navigate, useLocation } from 'react-router'
 import App from './App'
 import CreateProjectDynamic from './components/CreateProjectDynamic'
 import DatasetUpload from './components/DatasetUpload'
 import { AuthProvider, useAuth } from './auth/AuthProvider'
 import { LoginPage, PasswordPage } from './auth/AuthPages'
-import { ApiMessage, Page } from './components/AppShell'
-import { useResource } from './api/useResource'
-import type { Project } from './api/types'
-import { useEffect } from 'react'
-import { useProjectStore } from './store/project'
+import { ApiMessage } from './components/AppShell'
+import { ContinueProject } from './components/training/TrainingLayout'
+import PreparationStep from './components/training/PreparationStep'
+import ConfigurationStep from './components/training/ConfigurationStep'
+import TrainStep from './components/training/TrainStep'
+import EvaluationStep from './components/training/EvaluationStep'
+import PredictionStep from './components/training/PredictionStep'
 
-const workflowPaths = ['/dataset','/preparacion','/modelo','/entrenamiento','/evaluacion','/prediccion']
-function ProjectSelection({children}:{children:ReactNode}) {
-  const {search} = useLocation(), id = new URLSearchParams(search).get('project')
-  const result = useResource<Project>(id ? '/projects/'+encodeURIComponent(id) : null)
-  const select = useProjectStore(s=>s.select), selectedId = useProjectStore(s=>s.id)
-  useEffect(()=>{if(result.data)select(result.data)},[result.data,select])
-  if (!id) return <Page><section className="panel empty-state"><h1>Selecciona un proyecto</h1><Link to="/proyectos">Ir a proyectos</Link></section></Page>
-  if (result.loading || result.error || !result.data || selectedId!==id) return <Page><ApiMessage loading={result.loading||(!result.error&&selectedId!==id)} error={result.error} retry={result.reload}/></Page>
-  if (result.data.project_type !== 'character_recognition') return <Page><section className="panel empty-state"><h1>Entrenamiento pendiente</h1><p>El dataset está guardado. El flujo de entrenamiento para este tipo de proyecto todavía está en desarrollo.</p><Link to={'/proyectos/' + result.data.id}>Volver al proyecto</Link></section></Page>
-  return <><div className="demo-notice" role="note">Laboratorio de caracteres: el entrenamiento es real en el navegador. El ZIP, modelo y resultados se guardan de forma privada en el proyecto para continuar desde otro equipo.</div>{children}</>
+// Rutas del flujo anterior de caracteres: ahora abren el proyecto en su último paso.
+const legacyPaths = ['/dataset','/preparacion','/modelo','/entrenamiento','/evaluacion','/prediccion','/editor']
+const steps: Record<string, () => ReactNode> = {
+  '/crear': () => <CreateProjectDynamic/>, '/crear/datos': () => <DatasetUpload/>, '/crear/continuar': () => <ContinueProject/>,
+  '/crear/preparacion': () => <PreparationStep/>, '/crear/configuracion': () => <ConfigurationStep/>, '/crear/entrenar': () => <TrainStep/>,
+  '/crear/evaluar': () => <EvaluationStep/>, '/crear/probar': () => <PredictionStep/>
 }
 function RoutedExperience() {
-  const {pathname} = useLocation()
-  if (pathname==='/crear') return <CreateProjectDynamic/>
-  if (pathname==='/crear/datos') return <DatasetUpload/>
-  let content:ReactNode = <App/>
-  return workflowPaths.includes(pathname)?<ProjectSelection>{content}</ProjectSelection>:content
+  const {pathname,search} = useLocation()
+  if (steps[pathname]) return steps[pathname]()
+  if (legacyPaths.includes(pathname)) { const id = new URLSearchParams(search).get('project'); return <Navigate to={id ? '/crear/continuar?project='+encodeURIComponent(id) : '/proyectos'} replace/> }
+  return <App/>
 }
 export function Gate() {
   const {user,ready,error,refresh,logout}=useAuth(), location=useLocation()

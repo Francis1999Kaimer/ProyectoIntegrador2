@@ -11,6 +11,20 @@ globalThis.ResizeObserver=class {observe(){} unobserve(){} disconnect(){}}
 globalThis.requestAnimationFrame=callback=>setTimeout(callback,0)
 globalThis.cancelAnimationFrame=id=>clearTimeout(id)
 globalThis.IS_REACT_ACT_ENVIRONMENT=true
+dom.window.confirm=()=>true
+dom.window.HTMLCanvasElement.prototype.getContext=()=>null
+globalThis.createImageBitmap=async()=>({close(){},width:10,height:10})
+const MIN_PER_CATEGORY=10
+async function countZip(bytes){const zip=await JSZip.loadAsync(bytes),counts={};for(const e of Object.values(zip.files))if(!e.dir){const [label]=e.name.split('/');counts[label]=(counts[label]??0)+1}return counts}
+const enough=lab=>Object.values(lab.counts).every(n=>n>=MIN_PER_CATEGORY)
+function trainingState(p,user){
+  const lab=current.labs.get(p.id),owner=p.owner_id===user.id,editable=owner&&p.status!=='archived',sufficient=!!lab&&enough(lab),runs=lab?.runs??[]
+  let step=1;if(lab?.locked)step=!sufficient||!lab.test_percent?2:runs.length?5:!lab.config?3:4
+  return {project_id:p.id,project_type:p.project_type,owner,editable,step,min_per_category:MIN_PER_CATEGORY,
+    dataset:lab?{file_name:lab.file_name,labels:lab.labels,counts:lab.counts,samples:lab.samples,updated_at:lab.updated_at,locked:!!lab.locked,sufficient,problem:sufficient?null:'Cada categoría necesita al menos 10 ejemplos para entrenar.',can_replace:editable&&(!lab.locked||!sufficient)}:null,
+    preparation:lab?.test_percent?{test_percent:lab.test_percent,split_seed:7}:null,config:lab?.config??null,runs,
+    model:runs.length?{run_number:runs.at(-1).run_number,updated_at:runs.at(-1).created_at}:null}
+}
 let current
 const PASSWORD='test-only-password-123'
 const uid=n=>'10000000-0000-4000-8000-'+String(n).padStart(12,'0')
@@ -46,13 +60,22 @@ globalThis.fetch=async(url,options={})=>{
     return json(200,current.projects.filter(p=>user.role==='admin'||p.owner_id===user.id).slice(Number(u.searchParams.get('offset')??0),Number(u.searchParams.get('offset')??0)+Number(u.searchParams.get('limit')??25)))
   }
   if(path.startsWith('/projects/')){
-    const [, , projectId, resource] = path.split('/'),p=current.projects.find(p=>p.id===projectId);if(!p)return json(404,{})
-    if(resource==='character-lab'&&method==='GET')return json(200,{project_id:projectId,dataset:current.labs.get(projectId)??null,training:null})
-    if(resource==='dataset'&&method==='POST'){
-      if(current.labs.has(projectId))return json(409,{})
-      current.labs.set(projectId,{file_name:body.file_name,labels:body.labels,samples:body.samples,updated_at:new Date().toISOString()})
-      return json(201,{})
+    const [, , projectId, resource, sub] = path.split('/'),p=current.projects.find(p=>p.id===projectId);if(!p)return json(404,{})
+    const editable=p.owner_id===user.id&&p.status!=='archived',lab=current.labs.get(projectId)
+    if(resource==='training'&&!sub&&method==='GET')return json(200,trainingState(p,user))
+    if(resource==='dataset'&&sub==='file')return lab?new Response(lab.zip,{status:200,headers:{'Content-Type':'application/zip'}}):json(404,{})
+    if(resource==='training'&&sub==='model-file')return lab?.model?new Response(lab.model,{status:200,headers:{'Content-Type':'application/zip'}}):json(404,{})
+    if(resource==='dataset'&&!sub&&(method==='POST'||method==='PUT')){
+      if(!editable)return json(404,{})
+      if(method==='POST'&&lab)return json(409,{})
+      if(method==='PUT'&&(!lab||lab.updated_at!==body.expected_updated_at||(lab.locked&&enough(lab))))return json(409,{})
+      const zip=Buffer.from(body.archive_base64,'base64'),counts=await countZip(zip)
+      current.labs.set(projectId,{file_name:body.file_name,labels:Object.keys(counts).sort((a,b)=>a.localeCompare(b)),counts,samples:body.samples,updated_at:new Date(Date.now()+(++current.sequence)*1000).toISOString(),locked:false,zip,runs:[],config:lab?.config??null})
+      return json(method==='POST'?201:200,trainingState(p,user))
     }
+    if(resource==='dataset'&&sub==='lock'){if(!editable)return json(404,{});if(!lab)return json(409,{});lab.locked=true;return json(201,trainingState(p,user))}
+    if(resource==='training'&&sub==='preparation'){if(!editable)return json(404,{});if(!lab?.locked||!enough(lab))return json(409,{});lab.test_percent=body.test_percent;return json(200,trainingState(p,user))}
+    if(resource==='training'&&sub==='config'){if(!editable)return json(404,{});if(!lab?.test_percent)return json(409,{});lab.config=body;return json(200,trainingState(p,user))}
     if(resource==='workspace'){
       if(method==='GET'){const workspace=current.workspaces.get(projectId);return workspace?json(200,workspace):json(404,{})}
       const previous=current.workspaces.get(projectId),workspace={id:previous?.id??uid(++current.sequence+500),project_id:projectId,version:(previous?.version??0)+1,blocks:body.blocks};current.workspaces.set(projectId,workspace);return json(200,workspace)
@@ -109,7 +132,7 @@ globalThis.fetch=async(url,options={})=>{
 }
 const {createRoot}=await import('react-dom/client')
 const {BrowserRouter}=await import('react-router')
-const {AuthProvider,Gate,api,setToken,getToken,useProjectStore}=await import('../.test-build/ui/entry.js')
+const {AuthProvider,Gate,api,setToken,getToken,useProjectStore,buildModel,exportModel}=await import('../.test-build/ui/entry.js')
 let root
 function fresh(){
   for(const key of [...Object.keys(sessionStorage)])if(key.startsWith('aiblocks.login-throttle.'))sessionStorage.removeItem(key)
@@ -133,6 +156,16 @@ async function submit(label){const form=field(label).closest('form');await act(a
 async function settle(){ for(let i=0;i<5;i++) await act(async()=>{await Promise.resolve()}) }
 async function login(role='student',password=PASSWORD){await fill('Usuario',role);await fill('Contraseña',password);await submit('Usuario');await settle()}
 const text=()=>document.body.textContent
+async function waitFor(check,timeout=15000){const end=Date.now()+timeout;while(Date.now()<end){await act(async()=>{await new Promise(r=>setTimeout(r,25))});if(check())return}assert.fail('Tiempo agotado esperando: '+check)}
+async function zipFile(counts,name='datos.zip'){const zip=new JSZip();for(const [label,n] of Object.entries(counts))for(let i=1;i<=n;i++)zip.file(label+'/'+i+'.png',new Uint8Array([1,2,3]));return new NodeFile([await zip.generateAsync({type:'uint8array'})],name,{type:'application/zip'})}
+async function choose(file){const input=document.querySelector('input[aria-label="Dataset ZIP"]');assert.ok(input,'Falta el selector de ZIP');Object.defineProperty(input,'files',{value:[file],configurable:true});await act(async()=>{input.dispatchEvent(new window.Event('change',{bubbles:true}));await new Promise(resolve=>setTimeout(resolve,40))})}
+const button=label=>[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===label)
+async function seedProject({counts={A:10,B:10},locked=true,test_percent=20,config={epochs:8,learning_rate:0.001,batch_size:16,model_size:'small'},runs=[],model,type='image_classification'}={}){
+  const p={id:uid(++current.sequence+700),owner_id:uid(1),classroom_id:uid(50),title:'Proyecto sembrado',project_type:type,status:'draft'};current.projects.push(p)
+  const zip=Buffer.from(await (await zipFile(counts)).arrayBuffer())
+  current.labs.set(p.id,{file_name:'datos.zip',labels:Object.keys(counts),counts,samples:Object.values(counts).reduce((a,b)=>a+b,0),updated_at:'2026-11-05T10:00:00.000Z',locked,zip,test_percent,config,runs,model})
+  return p
+}
 
 test('unauthenticated deep link redirects to login; incorrect password shows error; successful login preserves destination',()=>fixture(async()=>{
   await mount('/proyectos/'+uid(40));assert.equal(window.location.pathname,'/login')
@@ -186,9 +219,11 @@ test('admin sees the responsible teacher in classroom details',()=>fixture(async
   await mount();await login('admin');await click('Salones');await click('Salon pilotoAño 2026Activo');await settle()
   assert.match(text(),/Docente responsable: Test teacher · teacher/)
 }))
-test('character-recognition workflow exposes one CNN model instead of generic simulated projects',()=>fixture(async()=>{
-  await mount('/modelo?project='+uid(40));await login();await settle();assert.match(text(),/ÚNICO MODELO DISPONIBLE/)
-  assert.match(text(),/CNN para caracteres individuales/);assert.ok(!text().includes('MobileNet'));assert.match(text(),/no hay modelos genéricos/i)
+test('old character workflow routes open the project in the new flow',()=>fixture(async()=>{
+  await mount('/modelo?project='+uid(40));await login();await settle()
+  await waitFor(()=>window.location.pathname==='/crear/datos')
+  assert.equal(new URLSearchParams(window.location.search).get('project'),uid(40))
+  assert.match(text(),/PASO 1 · DATOS DE ENTRENAMIENTO/);assert.match(text(),/Selecciona tu archivo ZIP/)
 }))
 test('student lesson content is escaped and reading progress is written and refreshed',()=>fixture(async()=>{
   await mount();await login();await click('Salones');await click('Salon pilotoAño 2026Activo');await click('Leccion piloto')
@@ -258,7 +293,8 @@ test('validated image dataset saves project and archive through the API',()=>fix
   assert.deepEqual(req.body.labels,['A','B']);assert.ok(req.body.archive_base64)
   await unmount();await mount('/crear/datos?project='+created.id);await settle()
   assert.match(text(),/ZIP guardado/);assert.match(text(),/datos.zip/)
-  assert.ok([...document.querySelectorAll('button')].find(b=>b.textContent.includes('Paso 2')).disabled)
+  assert.equal(button('Siguiente · Paso 2').disabled,false)
+  assert.ok(button('Reemplazar ZIP'))
   assert.equal(document.querySelector('input[aria-label="Dataset ZIP"]'),null)
 }))
 
@@ -274,4 +310,85 @@ test('reopening a project with no dataset offers ZIP upload; archived projects c
   await unmount();await mount('/crear/datos?project='+created.id);await settle()
   assert.match(text(),/El proyecto está archivado/)
   assert.ok(document.querySelector('input[aria-label="Dataset ZIP"]').disabled)
+}))
+
+const run=(n,over={})=>({id:'run-'+n,run_number:n,created_at:'2026-11-05T11:00:00.000Z',duration_ms:42000,config:{epochs:5,learning_rate:0.001,batch_size:16,model_size:'medium'},hardware:{backend:'webgl',gpu:'GPU de prueba',cores:8,memory_gb:8},history:[1,2,3,4,5].map(e=>({epoch:e,accuracy:0.5+e/10,loss:1-e/10})),
+  metrics:{labels:['A','B'],train_accuracy:0.95,train_loss:0.1,test_accuracy:0.75,test_loss:0.5,test_total:4,test_correct:3,per_class:[{label:'A',total:2,correct:1},{label:'B',total:2,correct:2}],confusion:[[1,1],[0,2]],misclassified:[{file:'A/1.png',actual:'A',predicted:'B',confidence:0.8}]},...over})
+
+test('step 1 replaces the ZIP before step 2; step 2 blocks training until each category has enough examples',()=>fixture(async()=>{
+  await mount();await login();await click('Crear proyecto');await fill('Nombre del proyecto','Proyecto reemplazo')
+  const choice=[...document.querySelectorAll('.project-type-option')].find(item=>item.textContent.includes('Clasificador de imágenes'))
+  await act(async()=>{choice.click();await Promise.resolve()});await click('Crear proyecto y siguiente')
+  const created=current.projects.find(p=>p.title==='Proyecto reemplazo')
+  await waitFor(()=>!!document.querySelector('input[aria-label="Dataset ZIP"]'))
+  await choose(await zipFile({A:2,B:2}));await click('Guardar dataset');await waitFor(()=>/ZIP guardado/.test(text()))
+  await click('Reemplazar ZIP');await choose(await zipFile({A:3,B:3},'nuevo.zip'));await click('Reemplazar dataset')
+  await waitFor(()=>/nuevo.zip/.test(text())&&!button('Reemplazar dataset'))
+  const put=current.requests.find(r=>r.method==='PUT'&&r.path==='/projects/'+created.id+'/dataset');assert.ok(put.body.expected_updated_at)
+  assert.equal(current.labs.get(created.id).samples,6)
+  await click('Siguiente · Paso 2');await waitFor(()=>window.location.pathname==='/crear/preparacion'&&/No se puede entrenar todavía/.test(text()))
+  assert.ok(current.labs.get(created.id).locked)
+  assert.match(text(),/A: 3 ejemplos \(faltan 7\)/)
+  assert.equal(button('Siguiente · Paso 3').disabled,true)
+  await click('Reemplazar ZIP');await waitFor(()=>window.location.pathname==='/crear/datos'&&!!document.querySelector('input[aria-label="Dataset ZIP"]'))
+  await choose(await zipFile({A:10,B:12},'completo.zip'));await click('Reemplazar dataset')
+  await waitFor(()=>/completo.zip/.test(text())&&!button('Reemplazar dataset'))
+  assert.equal(current.labs.get(created.id).locked,false)
+  await click('Siguiente · Paso 2');await waitFor(()=>window.location.pathname==='/crear/preparacion'&&!!button('Siguiente · Paso 3'))
+  assert.ok(!/No se puede entrenar todavía/.test(text()));assert.equal(button('Siguiente · Paso 3').disabled,false)
+  const radio=document.querySelector('input[name="test_percent"][value="30"]')
+  await act(async()=>{radio.click();await Promise.resolve()})
+  assert.match(text(),/Entrenamiento15 ejemplos/);assert.match(text(),/Prueba7 ejemplos/)
+  await click('Siguiente · Paso 3');await waitFor(()=>window.location.pathname==='/crear/configuracion')
+  assert.equal(current.labs.get(created.id).test_percent,30)
+  // Con datos suficientes y pasado el paso 2, el ZIP ya no se puede reemplazar.
+  await unmount();await mount('/crear/datos?project='+created.id);await waitFor(()=>/ZIP guardado/.test(text()))
+  assert.equal(button('Reemplazar ZIP'),undefined);assert.match(text(),/quedó fijo/)
+}))
+
+test('step 3 shows recommended values for the detected hardware and saves the configuration',()=>fixture(async()=>{
+  const p=await seedProject({config:null})
+  await mount('/crear/configuracion?project='+p.id);await login();await waitFor(()=>!!document.querySelector('input[aria-label="Épocas"]'))
+  assert.match(text(),/PASO 3 · CONFIGURACIÓN DEL ENTRENAMIENTO/);assert.match(text(),/Backend de TensorFlow.js/);assert.match(text(),/CPU/)
+  assert.equal(document.querySelector('input[aria-label="Épocas"]').value,'8')
+  assert.match(text(),/Adam/);assert.match(text(),/Conv2D \(4 filtros/)
+  await waitFor(()=>!/Midiendo/.test(text()))
+  assert.match(text(),/Tiempo estimado por época/)
+  await fill('Learning rate','0.003')
+  await click('Siguiente · Paso 4');await waitFor(()=>window.location.pathname==='/crear/entrenar')
+  assert.deepEqual(current.labs.get(p.id).config,{epochs:8,learning_rate:0.003,batch_size:16,model_size:'small'})
+  await waitFor(()=>/Entrenar 8 épocas/.test(text()))
+  assert.match(text(),/Configuración usada/);assert.match(text(),/0\.003/)
+}))
+
+test('step 5 shows test results, confusions, diagnosis and the training history; viewers cannot retrain',()=>fixture(async()=>{
+  const first=run(1,{metrics:{...run(1).metrics,test_accuracy:0.5,test_correct:2,confusion:[[1,1],[1,1]],per_class:[{label:'A',total:2,correct:1},{label:'B',total:2,correct:1}]}})
+  const p=await seedProject({runs:[first,run(2)]})
+  await mount('/crear/evaluar?project='+p.id);await login();await waitFor(()=>/Resultados con el conjunto de prueba/.test(text()))
+  assert.match(text(),/75\.0 %/);assert.match(text(),/Acertó 3 de 4 ejemplos de prueba/);assert.match(text(),/Posible sobreajuste/)
+  assert.match(text(),/A se confundió con B 1 vez/);assert.match(text(),/Entrenamiento 2 de 2/)
+  assert.ok(document.querySelector('.confusion-table'));assert.equal(document.querySelectorAll('.training-stepper li').length,7)
+  await click('Ver');assert.match(text(),/Entrenamiento 1 de 2/)
+  await click('Cambiar configuración y volver a entrenar');await waitFor(()=>window.location.pathname==='/crear/configuracion')
+  await unmount();setToken(null)
+  await mount('/crear/evaluar?project='+p.id);await login('teacher');await waitFor(()=>/Resultados con el conjunto de prueba/.test(text()))
+  assert.equal(button('Cambiar configuración y volver a entrenar'),undefined)
+}))
+
+test('step 6 loads the last model and offers the inputs for the project type and the download',()=>fixture(async()=>{
+  const model=buildModel('rgb64',2,{model_size:'small',learning_rate:0.001})
+  const archive=Buffer.from(await (await exportModel(model,{labels:['A','B']})).arrayBuffer());model.dispose()
+  const p=await seedProject({runs:[run(1)],model:archive})
+  await mount('/crear/probar?project='+p.id);await login();await waitFor(()=>!!button('Seleccionar imagen'))
+  assert.match(text(),/PASO 6 · PRUEBA/);assert.match(text(),/modelo del entrenamiento 1/)
+  assert.ok(button('Usar cámara'));assert.ok(button('Descargar modelo'))
+  assert.ok(current.requests.some(r=>r.path==='/projects/'+p.id+'/training/model-file'))
+}))
+
+test('opening a project continues at the last step reached; later steps redirect back',()=>fixture(async()=>{
+  const p=await seedProject({runs:[run(1)]})
+  await mount('/proyectos/'+p.id);await login();await waitFor(()=>!!button('Continuar proyecto'));await click('Continuar proyecto')
+  await waitFor(()=>window.location.pathname==='/crear/evaluar')
+  const q=await seedProject({config:null});await unmount();await mount('/crear/entrenar?project='+q.id)
+  await waitFor(()=>window.location.pathname==='/crear/configuracion')
 }))

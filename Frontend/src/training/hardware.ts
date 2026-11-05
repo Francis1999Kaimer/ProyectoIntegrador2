@@ -43,8 +43,8 @@ export async function estimateEpochMs(kind: InputKind, classes: number, config: 
   try {
     await model.trainOnBatch(xs, ys)
     const start = performance.now()
-    for (let i = 0; i < 3; i++) await model.trainOnBatch(xs, ys)
-    return Math.round((performance.now() - start) / 3 * Math.ceil(trainCount / batch))
+    for (let i = 0; i < 2; i++) await model.trainOnBatch(xs, ys)
+    return Math.round((performance.now() - start) / 2 * Math.ceil(trainCount / batch))
   } finally { xs.dispose(); ys.dispose(); model.dispose() }
 }
 

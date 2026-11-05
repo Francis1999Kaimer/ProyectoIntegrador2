@@ -6,7 +6,7 @@ import { useResource } from '../api/useResource'
 import { statusLabels, typeLabel, type Catalog, type Classroom, type Lesson, type Progress, type Project, type Student, type Teacher } from '../api/types'
 import { useAuth } from '../auth/AuthProvider'
 import { useProjectStore } from '../store/project'
-import { ApiMessage, Page, workflow } from './AppShell'
+import { ApiMessage, Page } from './AppShell'
 
 function Paging({offset,count,setOffset}:{offset:number;count:number;setOffset:(value:number)=>void}) {
   return <div className="actions between api-pagination"><button className="secondary" disabled={!offset} onClick={()=>setOffset(Math.max(0,offset-25))}>Anterior</button><span>Página {offset/25+1}</span><button className="secondary" disabled={count<25} onClick={()=>setOffset(offset+25)}>Siguiente</button></div>
@@ -17,7 +17,7 @@ export function Dashboard() {
     <section className="section-heading"><h2>Proyectos recientes</h2><Link to="/proyectos">Ver todos</Link></section>
     <ApiMessage {...recent} retry={recent.reload}/>
     {recent.data?.length===0&&<section className="panel empty-state"><p>Aún no hay proyectos disponibles para tu cuenta.</p><Link to="/crear">Crea tu primer proyecto</Link></section>}
-    <div className="card-grid">{recent.data?.map(p=><Link className="project-card" key={p.id} to={'/crear/datos?project='+encodeURIComponent(p.id)}><FolderOpen size={24}/><strong>{p.title}</strong><p>{typeLabel(p.project_type)}</p><small>{statusLabels[p.status]??p.status}</small></Link>)}</div>
+    <div className="card-grid">{recent.data?.map(p=><Link className="project-card" key={p.id} to={'/crear/continuar?project='+encodeURIComponent(p.id)}><FolderOpen size={24}/><strong>{p.title}</strong><p>{typeLabel(p.project_type)}</p><small>{statusLabels[p.status]??p.status}</small></Link>)}</div>
   </Page>
 }
 export function ProjectsPage() {
@@ -36,7 +36,7 @@ export function ProjectDetail() {
   const [title,setTitle]=useState(''), [busy,setBusy]=useState(false), [error,setError]=useState('')
   const project=result.data, owner=project?.owner_id===user?.id
   async function update(body:unknown) { setBusy(true);setError('');try{await api.request('/projects/'+id,{method:'PATCH',body});result.reload();setTitle('')}catch(e){setError((e as Error).message)}finally{setBusy(false)} }
-  function open() { if(project){useProjectStore.getState().select(project);navigate('/crear/datos?project='+encodeURIComponent(project.id))} }
+  function open() { if(project){useProjectStore.getState().select(project);navigate('/crear/continuar?project='+encodeURIComponent(project.id))} }
   return <Page><Link className="back-link" to="/proyectos">← Volver a proyectos</Link><ApiMessage {...result} retry={result.reload}/>{project&&<section className="panel resource-detail"><span className="eyebrow">{typeLabel(project.project_type)}</span><h1>{project.title}</h1><p>Estado: {statusLabels[project.status]??project.status}</p><p>{owner?'Este proyecto te pertenece.':'Puedes consultar este proyecto; su propietario conserva los permisos de edición.'}</p>
     <button className="primary" onClick={open}>Continuar proyecto <ArrowRight size={17}/></button>
     {owner&&<><form className="api-form" onSubmit={e=>{e.preventDefault();void update({title:title.trim()})}}><label>Nuevo nombre<input required maxLength={180} value={title} onChange={e=>setTitle(e.target.value)}/></label><button className="secondary" disabled={busy||!title.trim()}>Guardar nombre</button></form><button className="secondary" disabled={busy} onClick={()=>void update({status:project.status==='archived'?'draft':'archived'})}>{project.status==='archived'?'Reabrir proyecto':'Archivar proyecto'}</button></>}
