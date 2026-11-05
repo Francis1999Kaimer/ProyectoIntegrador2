@@ -136,7 +136,7 @@ test('the login form temporarily blocks a username after three wrong passwords',
 test('public landing presents the product and sends visitors to login',()=>fixture(async()=>{
   await mount('/');assert.match(text(),/Entrena un modelo que/);await click('Iniciar sesión');assert.equal(window.location.pathname,'/login')
 }))
-test('new project screen selects each type without creating a project yet',()=>fixture(async()=>{
+test('new project screen selects each type and advances to dataset validation',()=>fixture(async()=>{
   await mount();await login();await click('Crear proyecto');await fill('Nombre del proyecto','Proyecto nuevo DOM')
   const choices=[...document.querySelectorAll('.project-type-option')]
   assert.equal(choices.length,6)
@@ -153,7 +153,10 @@ test('new project screen selects each type without creating a project yet',()=>f
     if(i>0)assert.match(details.textContent,/Formato propuesto/)
   }
   await click('Siguiente')
-  assert.equal(window.location.pathname,'/crear')
+  assert.equal(window.location.pathname,'/crear/datos')
+  assert.match(text(),/PASO 1 · DATOS DE ENTRENAMIENTO/)
+  assert.match(text(),/Clasificador de dibujos simples/)
+  assert.ok(field('Dataset ZIP'))
   assert.equal(current.requests.some(r=>r.method==='POST'&&r.path==='/projects'),false)
 }))
 test('teacher classroom form, roster enrollment and removal use real component event flow',()=>fixture(async()=>{
