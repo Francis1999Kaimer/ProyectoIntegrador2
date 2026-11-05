@@ -8,7 +8,7 @@ import { datasetBlob } from '../../training/storage'
 import { isLegacy, percent, type Misclassified, type RunMetrics, type TrainingRun } from '../../training/types'
 import { Bar, MetricChart } from './charts'
 import { EpochTable } from './TrainStep'
-import { StepActions, stepUrl, TrainingHeading, TrainingPage, type StepContext } from './TrainingLayout'
+import { ReturnLink, StepActions, stepUrl, TrainingHeading, TrainingPage, type StepContext } from './TrainingLayout'
 
 export function diagnose(m: RunMetrics) {
   if (m.train_accuracy < 0.7) return { ok: false, title: 'Entrenamiento insuficiente', text: `La CNN acierta ${percent(m.train_accuracy)} con los datos de entrenamiento: todavía no aprende bien ni con los ejemplos que ya vio.`, tips: ['Aumenta las épocas.', 'Prueba una CNN más grande.', 'Prueba un learning rate mayor.'] }
@@ -118,6 +118,7 @@ function EvaluationContent({ projectId, project, state }: StepContext) {
       <RunHistory runs={runs} selected={run.run_number} onSelect={setSelected} />
     </section>
     <StepActions back={{ to: stepUrl(4, projectId), label: 'Anterior · Paso 4' }}>
+      <ReturnLink />
       {state.editable && <button className="secondary" onClick={() => navigate(stepUrl(3, projectId))}>Cambiar configuración y volver a entrenar</button>}
       <button className="primary" onClick={() => navigate(stepUrl(6, projectId))}>Siguiente · Paso 6</button>
     </StepActions>

@@ -8,7 +8,20 @@ import type { TrainingState } from '../../training/types'
 
 export const stepPaths = ['/crear', '/crear/datos', '/crear/preparacion', '/crear/configuracion', '/crear/entrenar', '/crear/evaluar', '/crear/probar']
 const stepNames = ['Proyecto', 'Datos', 'Preparación', 'Configuración', 'Entrenar', 'Evaluar', 'Probar']
-export const stepUrl = (step: number, id: string) => stepPaths[step] + '?project=' + encodeURIComponent(id)
+/**
+ * Tarea desde la que se abrió el proyecto (parámetro `volver`). Solo se aceptan rutas de tareas,
+ * así el enlace nunca sale de la app.
+ */
+export function returnTask(search: string) {
+  const to = new URLSearchParams(search).get('volver')
+  return to && /^\/salones\/[^/?#]+\/tareas\/[^/?#]+$/.test(to) ? to : null
+}
+/** El origen viaja con el proyecto al moverse entre sus pasos; no pasa a otro proyecto. */
+function carryReturn(id: string) {
+  const search = window.location.search, to = returnTask(search)
+  return to && new URLSearchParams(search).get('project') === id ? '&volver=' + encodeURIComponent(to) : ''
+}
+export const stepUrl = (step: number, id: string) => stepPaths[step] + '?project=' + encodeURIComponent(id) + carryReturn(id)
 /** Último paso al que se puede entrar: con un entrenamiento guardado se habilitan Evaluar y Probar. */
 export const reachedStep = (state: TrainingState) => state.step >= 5 ? 6 : state.step
 export const trainingPath = (id: string) => `/projects/${encodeURIComponent(id)}/training`
@@ -76,6 +89,12 @@ export function ContinueProject() {
   if (training.error) return <Page><ApiMessage error={training.error} retry={training.reload} /></Page>
   if (!training.data) return <Page><ApiMessage loading /></Page>
   return <Navigate to={stepUrl(training.data.step, projectId)} replace />
+}
+
+/** Salida del proyecto: vuelve a la tarea si se abrió desde una entrega; si no, a Proyectos. */
+export function ReturnLink({ className = 'secondary' }: { className?: string }) {
+  const to = returnTask(useLocation().search)
+  return <Link className={className + ' button-link'} to={to ?? '/proyectos'}>{to ? 'Volver a la tarea' : 'Ir a proyectos'}</Link>
 }
 
 export function StepActions({ back, children, note }: { back?: { to: string; label: string } | null; children?: ReactNode; note?: ReactNode }) {

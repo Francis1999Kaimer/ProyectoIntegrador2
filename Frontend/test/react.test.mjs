@@ -497,6 +497,8 @@ test('teacher creates a task; the student submits a project from the shortcut fl
   await click('Salir');await login('teacher');await click('Inicio');await waitFor(()=>/Entregas por calificar/.test(text())&&/1 por calificar/.test(text()))
   await unmount();await mount('/salones/'+uid(50)+'/tareas/'+task.id);await settle()
   await waitFor(()=>/Por calificar/.test(text()));assert.match(text(),/Mis frutas/);assert.match(text(),/Usé manzanas/)
+  const open=[...document.querySelectorAll('a')].find(a=>a.textContent.trim()==='Ver proyecto')
+  assert.equal(new URLSearchParams(open.getAttribute('href').split('?')[1]).get('volver'),'/salones/'+uid(50)+'/tareas/'+task.id,'«Ver proyecto» recuerda la tarea')
   await fill('Nota (0 a 20)','17.5');await fill('Comentario (opcional)','Muy bien');await click('Guardar nota');await settle()
   await waitFor(()=>/Nota: 17\.5/.test(text()));assert.equal(current.submissions[0].grade,17.5)
   await click('Salir');await login();await unmount();await mount('/salones/'+uid(50)+'/tareas/'+task.id);await settle()
@@ -537,4 +539,23 @@ test('classroom detail opens on the Tareas tab and switches to Docentes and Alum
 test('students see the classroom tasks without tabs',()=>fixture(async()=>{
   await mount();await login();await click('Salones');await click('Salon pilotoAño 2026Activo');await settle()
   assert.equal(document.querySelector('[role="tablist"]'),null);assert.equal(document.getElementById('room-panel-tareas').hidden,false)
+}))
+
+test('a project opened from a task returns to the task from steps 5 and 6; otherwise it goes to Proyectos',()=>fixture(async()=>{
+  const p=await seedProject({runs:[run(1)]}),back='/salones/'+uid(50)+'/tareas/'+uid(70)
+  const link=label=>[...document.querySelectorAll('a')].find(a=>a.textContent.trim()===label)
+  await mount('/crear/continuar?project='+p.id+'&volver='+encodeURIComponent(back));await login()
+  await waitFor(()=>/Resultados con el conjunto de prueba/.test(text()))
+  assert.equal(window.location.pathname,'/crear/evaluar');assert.equal(link('Volver a la tarea')?.getAttribute('href'),back);assert.equal(link('Ir a proyectos'),undefined)
+  await click('Siguiente · Paso 6');await waitFor(()=>window.location.pathname==='/crear/probar')
+  assert.equal(new URLSearchParams(window.location.search).get('volver'),back,'el origen pasa al paso 6')
+  await waitFor(()=>link('Volver a la tarea')?.getAttribute('href')===back);assert.ok(link('Volver a la tarea').classList.contains('primary'))
+  const stepper=[...document.querySelectorAll('.training-stepper a')].find(a=>a.textContent.includes('Evaluar'))
+  assert.equal(new URLSearchParams(stepper.getAttribute('href').split('?')[1]).get('volver'),back,'también desde la barra de pasos')
+  await click('Volver a la tarea');assert.equal(window.location.pathname,back)
+  // Desde Proyectos, o con un origen que no es una tarea, se vuelve a Proyectos.
+  await unmount();await mount('/crear/evaluar?project='+p.id);await waitFor(()=>/Resultados con el conjunto de prueba/.test(text()))
+  assert.equal(link('Ir a proyectos')?.getAttribute('href'),'/proyectos');assert.equal(link('Volver a la tarea'),undefined)
+  await unmount();await mount('/crear/evaluar?project='+p.id+'&volver='+encodeURIComponent('https://example.com/salones/a/tareas/b'));await waitFor(()=>/Resultados con el conjunto de prueba/.test(text()))
+  assert.equal(link('Volver a la tarea'),undefined);assert.equal(link('Ir a proyectos')?.getAttribute('href'),'/proyectos')
 }))

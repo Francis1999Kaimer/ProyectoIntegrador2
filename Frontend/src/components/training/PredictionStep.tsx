@@ -8,7 +8,7 @@ import { audioDecoder, featuresToDataUrl, imageFeatures, soundFeatures, soundWin
 import { modelBlob } from '../../training/storage'
 import { inputKinds, percent, type InputKind } from '../../training/types'
 import { Bar } from './charts'
-import { StepActions, stepUrl, TrainingHeading, TrainingPage, type StepContext } from './TrainingLayout'
+import { ReturnLink, StepActions, stepUrl, TrainingHeading, TrainingPage, type StepContext } from './TrainingLayout'
 
 type Mode = 'draw' | 'upload' | 'camera' | 'record'
 const modes: Record<InputKind, { id: Mode; label: string }[]> = {
@@ -147,8 +147,8 @@ function PredictionContent({ projectId, project, state }: StepContext) {
       </section>
     </>}
     <StepActions back={{ to: stepUrl(5, projectId), label: 'Anterior · Paso 5' }}>
-      {/* Último paso: no hay «finalizar»; se vuelve a la lista de proyectos. */}
-      <Link className="primary button-link" to="/proyectos">Ir a proyectos</Link>
+      {/* Último paso: no hay «finalizar»; se vuelve a la tarea o a la lista de proyectos. */}
+      <ReturnLink className="primary" />
     </StepActions>
   </>
 }

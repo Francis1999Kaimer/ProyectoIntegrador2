@@ -11,7 +11,8 @@ const dateTime = (iso: string) => new Date(iso).toLocaleString('es-PE', { dateSt
 const localInput = (date: Date) => new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
 const grade = (value: number) => Number.isInteger(value) ? String(value) : value.toFixed(1)
 const taskPath = (classroomId: string, id: string) => `/salones/${encodeURIComponent(classroomId)}/tareas/${encodeURIComponent(id)}`
-const continuePath = (projectId: string) => '/crear/continuar?project=' + encodeURIComponent(projectId)
+// Al abrir un proyecto desde una tarea, los pasos 5 y 6 ofrecen «Volver a la tarea».
+const continuePath = (projectId: string, task: Assignment) => '/crear/continuar?project=' + encodeURIComponent(projectId) + '&volver=' + encodeURIComponent(taskPath(task.classroom_id, task.id))
 
 function StateTag({ task }: { task: Pick<Assignment, 'state'> }) {
   return <span className={'tag ' + (task.state === 'open' ? 'ok-tag' : task.state === 'upcoming' ? 'info-tag' : 'muted-tag')}>{assignmentStates[task.state]}</span>
@@ -123,7 +124,7 @@ function TeacherView({ task, setTask, reload }: { task: AssignmentDetail; setTas
             {' · '}{entry.submission.run_number ? `Entrenamiento ${entry.submission.run_number}${entry.submission.test_accuracy !== null ? ` (accuracy de prueba ${(entry.submission.test_accuracy * 100).toFixed(1)} %)` : ''}` : 'Sin entrenamientos'}
             {' · '}Entregado el {dateTime(entry.submission.submitted_at)}</p>
           {entry.submission.comment && <p className="submission-comment">«{entry.submission.comment}»</p>}
-          <Link className="secondary button-link" to={continuePath(entry.submission.project_id)}>Ver proyecto</Link>
+          <Link className="secondary button-link" to={continuePath(entry.submission.project_id, task)}>Ver proyecto</Link>
           <GradeForm key={entry.submission.graded_at ?? entry.submission.submitted_at} entry={entry} task={task} onSaved={setTask} />
         </>}
       </li>)}</ul>
@@ -158,7 +159,7 @@ function StudentView({ task, setTask }: { task: AssignmentDetail; setTask: (next
       {sub.feedback && <p>Comentario del docente: «{sub.feedback}»</p>}
       <p>Entregaste <strong>{submittedProject?.title ?? 'tu proyecto'}</strong>{sub.run_number ? ` (entrenamiento ${sub.run_number})` : ''} · {dateTime(sub.submitted_at)}</p>
       {sub.grade === null && <p>Puedes cambiar la entrega hasta el cierre mientras no tenga nota.</p>}
-      <Link to={continuePath(sub.project_id)}>Abrir proyecto</Link>
+      <Link to={continuePath(sub.project_id, task)}>Abrir proyecto</Link>
     </div>}
     {task.state === 'upcoming' && <p>La tarea empieza el {dateTime(task.starts_at)}.</p>}
     {task.state === 'closed' && !sub && <p>La tarea cerró sin entrega.</p>}
