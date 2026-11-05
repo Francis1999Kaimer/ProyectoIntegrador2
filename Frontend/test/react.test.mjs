@@ -140,11 +140,17 @@ test('new project screen selects each type without creating a project yet',()=>f
   await mount();await login();await click('Crear proyecto');await fill('Nombre del proyecto','Proyecto nuevo DOM')
   const choices=[...document.querySelectorAll('.project-type-option')]
   assert.equal(choices.length,6)
-  for(const choice of choices){
+  const expected=[['Reconocedor de números','letras.zip'],['Clasificador de frutas','frutas.zip'],['Reconocedor de palmadas','sonidos.zip'],['Reconocedor de mano abierta y puño','gestos.zip'],['Reconocedor de brazos arriba y abajo','posturas.zip'],['Reconocedor de dibujos de casas','dibujos.zip']]
+  for(let i=0;i<choices.length;i++){
+    const choice=choices[i]
     assert.equal(choice.disabled,false)
     await act(async()=>{choice.click();await Promise.resolve()})
     assert.equal(choice.getAttribute('aria-pressed'),'true')
     assert.equal(choices.filter(item=>item.getAttribute('aria-pressed')==='true').length,1)
+    const details=document.querySelector('.project-type-details')
+    assert.ok(details.textContent.includes(expected[i][0]))
+    assert.ok(details.textContent.includes(expected[i][1]))
+    if(i>0)assert.match(details.textContent,/Formato propuesto/)
   }
   await click('Siguiente')
   assert.equal(window.location.pathname,'/crear')
