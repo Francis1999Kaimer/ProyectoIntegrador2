@@ -113,8 +113,8 @@ async function fixture() {
   };
   const storedLabs = new Map();
   const db = { $queryRaw: async () => [{ ok: 1 }] };
-  db.projects = { findUnique: async ({where}) => projects.find(p => p.id === where.id) ?? null, create: async ({data}) => { const p = {...data,status:'draft'}; projects.push(p); return p; } };
-  db.character_labs = { findUnique: async ({where}) => storedLabs.get(where.project_id) ?? null, create: async ({data}) => { const row={...data,dataset_updated_at:new Date(),model_file_name:null,model_content_type:null,training_metrics_json:null,training_updated_at:null}; storedLabs.set(data.project_id,row); return row; } };
+  db.projects = { findUnique: async ({where}) => projects.find(p => p.id === where.id) ?? null, create: async ({data}) => { if(projects.some(p=>p.id===data.id)) throw Object.assign(new Error('duplicate'),{code:'P2002'}); const p = {...data,status:'draft'}; projects.push(p); return p; } };
+  db.character_labs = { findUnique: async ({where}) => storedLabs.get(where.project_id) ?? null, create: async ({data}) => { if(storedLabs.has(data.project_id)) throw Object.assign(new Error('duplicate'),{code:'P2002'}); const row={...data,dataset_updated_at:new Date(),model_file_name:null,model_content_type:null,training_metrics_json:null,training_updated_at:null}; storedLabs.set(data.project_id,row); return row; } };
   db.$transaction = async fn => fn(db);
   const module = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(USER_REPOSITORY).useValue(authRepo)
@@ -359,4 +359,22 @@ test('new project with dataset requires auth, supports each type, and prevents c
     const stored=await f.call(f.a,'GET','/projects/'+created.body.id+'/character-lab');
     assert.equal(stored.status,200); assert.equal(stored.body.dataset.samples,12);
   }
+}));
+
+test('draft survives without dataset; initial upload is owner-only and cannot overwrite', () => withFixture(async f => {
+  const draft={request_id:randomUUID(),title:'Draft test',project_type:'image_classification'};
+  assert.equal((await f.call(null,'POST','/projects/draft',draft)).status,401);
+  const created=await f.call(f.a,'POST','/projects/draft',draft);
+  assert.equal(created.status,201);
+  const repeat=await f.call(f.a,'POST','/projects/draft',draft);
+  assert.equal(repeat.body.id,created.body.id);
+  assert.equal((await f.call(f.b,'POST','/projects/draft',draft)).status,409);
+  const path='/projects/'+created.body.id;
+  assert.equal((await f.call(f.a,'GET',path+'/character-lab')).body.dataset,null);
+  const dataset={file_name:'test.zip',content_type:'application/zip',archive_base64:Buffer.from([0x50,0x4b,3,4]).toString('base64'),labels:['A','B'],samples:4};
+  assert.equal((await f.call(f.b,'POST',path+'/dataset',dataset)).status,404);
+  assert.equal((await f.call(f.a,'POST',path+'/dataset',dataset)).status,201);
+  assert.equal((await f.call(f.a,'POST',path+'/dataset',dataset)).status,409);
+  const stored=await f.call(f.a,'GET',path+'/character-lab');
+  assert.equal(stored.body.dataset.file_name,'test.zip');assert.equal(stored.body.dataset.samples,4);
 }));
