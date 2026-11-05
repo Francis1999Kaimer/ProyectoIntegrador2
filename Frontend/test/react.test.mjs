@@ -261,3 +261,17 @@ test('validated image dataset saves project and archive through the API',()=>fix
   assert.ok([...document.querySelectorAll('button')].find(b=>b.textContent.includes('Paso 2')).disabled)
   assert.equal(document.querySelector('input[aria-label="Dataset ZIP"]'),null)
 }))
+
+test('reopening a project with no dataset offers ZIP upload; archived projects cannot upload',()=>fixture(async()=>{
+  await mount();await login();await click('Crear proyecto');await fill('Nombre del proyecto','Proyecto pendiente')
+  await click('Crear proyecto y siguiente')
+  const created=current.projects.find(p=>p.title==='Proyecto pendiente')
+  assert.ok(created)
+  await unmount();await mount('/crear/datos?project='+created.id);await settle()
+  assert.match(text(),/Selecciona tu archivo ZIP/)
+  assert.ok(!document.querySelector('button.primary') || document.querySelector('button.primary').disabled)
+  created.status='archived'
+  await unmount();await mount('/crear/datos?project='+created.id);await settle()
+  assert.match(text(),/El proyecto está archivado/)
+  assert.ok(document.querySelector('input[aria-label="Dataset ZIP"]').disabled)
+}))
