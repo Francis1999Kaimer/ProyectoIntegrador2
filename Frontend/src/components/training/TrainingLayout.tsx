@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, Navigate, useLocation } from 'react-router'
 import { Check } from 'lucide-react'
 import { useResource } from '../../api/useResource'
@@ -16,8 +16,14 @@ export const trainingPath = (id: string) => `/projects/${encodeURIComponent(id)}
 export function useProjectId() { return new URLSearchParams(useLocation().search).get('project') }
 
 export function TrainingStepper({ projectId, current, state, locked = false }: { projectId: string; current: number; state: TrainingState | null; locked?: boolean }) {
-  const reached = state ? reachedStep(state) : 1, completed = state ? reachedStep(state) : 1
-  return <nav className="training-stepper" aria-label="Pasos del proyecto"><ol>
+  const reached = state ? reachedStep(state) : 1, completed = reached
+  const nav = useRef<HTMLElement>(null)
+  // En pantallas angostas, el paso actual queda centrado y visible.
+  useEffect(() => {
+    const box = nav.current, item = box?.querySelector<HTMLElement>('li.active')
+    if (box && item && box.scrollWidth > box.clientWidth) box.scrollLeft = item.offsetLeft - (box.clientWidth - item.offsetWidth) / 2
+  }, [current])
+  return <nav ref={nav} className="training-stepper" aria-label="Pasos del proyecto"><ol>
     {stepNames.map((name, i) => {
       const done = i < completed, active = i === current
       const content = <><span className="training-step-number">{done && !active ? <Check size={13} aria-label="completado" /> : i}</span><span className="training-step-name">{name}</span></>

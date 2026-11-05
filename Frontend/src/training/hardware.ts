@@ -49,7 +49,8 @@ export async function estimateEpochMs(kind: InputKind, classes: number, config: 
 }
 
 export function formatDuration(ms: number) {
-  const seconds = Math.max(0, Math.round(ms / 1000))
+  if (ms < 1000) return 'menos de 1 s'
+  const seconds = Math.round(ms / 1000)
   if (seconds < 60) return `${seconds} s`
   return `${Math.floor(seconds / 60)} min ${String(seconds % 60).padStart(2, '0')} s`
 }
