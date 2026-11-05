@@ -38,7 +38,7 @@ export function ProjectDetail() {
   async function update(body:unknown) { setBusy(true);setError('');try{await api.request('/projects/'+id,{method:'PATCH',body});result.reload();setTitle('')}catch(e){setError((e as Error).message)}finally{setBusy(false)} }
   function open() { if(project){useProjectStore.getState().select(project);navigate(workflow('/dataset',project.id))} }
   return <Page><Link className="back-link" to="/proyectos">← Volver a proyectos</Link><ApiMessage {...result} retry={result.reload}/>{project&&<section className="panel resource-detail"><span className="eyebrow">{typeLabel(project.project_type)}</span><h1>{project.title}</h1><p>Estado: {statusLabels[project.status]??project.status}</p><p>{owner?'Este proyecto te pertenece.':'Puedes consultar este proyecto; su propietario conserva los permisos de edición.'}</p>
-    <button className="primary" onClick={open}>Explorar proyecto <ArrowRight size={17}/></button>
+    {project.project_type==='character_recognition'?<button className="primary" onClick={open}>Explorar proyecto <ArrowRight size={17}/></button>:<p>El dataset está guardado. El entrenamiento para este tipo de proyecto todavía está en desarrollo.</p>}
     {owner&&<><form className="api-form" onSubmit={e=>{e.preventDefault();void update({title:title.trim()})}}><label>Nuevo nombre<input required maxLength={180} value={title} onChange={e=>setTitle(e.target.value)}/></label><button className="secondary" disabled={busy||!title.trim()}>Guardar nombre</button></form><button className="secondary" disabled={busy} onClick={()=>void update({status:project.status==='archived'?'draft':'archived'})}>{project.status==='archived'?'Reabrir proyecto':'Archivar proyecto'}</button></>}
     <ApiMessage error={error}/></section>}</Page>
 }
