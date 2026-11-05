@@ -17,7 +17,9 @@ import { JwtAuthGuard, RolesGuard } from './auth.guards';
       imports: [ConfigModule], inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         secret: config.getOrThrow<string>('JWT_SECRET'),
-        signOptions: { algorithm: 'HS256', expiresIn: 900, issuer: 'aiblocks-api', audience: 'aiblocks-web' },
+        // Sin vencimiento: la sesión dura hasta cerrar sesión o la pestaña. Se invalida al cambiar o
+        // restablecer la contraseña y al suspender la cuenta, porque cada petición se revisa contra la BD.
+        signOptions: { algorithm: 'HS256', issuer: 'aiblocks-api', audience: 'aiblocks-web' },
         verifyOptions: { algorithms: ['HS256'], issuer: 'aiblocks-api', audience: 'aiblocks-web' }
       })
     })

@@ -21,7 +21,7 @@ Las rutas access son comprobaciones de autorización para la sustentación.
 Los endpoints de proyectos/salones se documentan en APIS_HITO6.md; la pantalla de login pertenece al hito 7.
 No hay registro público ni se permite elegir rol mediante el cuerpo del login.
 
-JWT HS256: duración 15 minutos, issuer aiblocks-api, audience aiblocks-web.
+JWT HS256 sin vencimiento por tiempo, issuer aiblocks-api, audience aiblocks-web. La sesión dura hasta cerrar sesión o la pestaña (el token se guarda en sessionStorage) y deja de valer al cambiar o restablecer la contraseña, o al suspender la cuenta, porque cada petición se comprueba contra la base de datos.
 Los Guards son globales; rutas futuras requieren token salvo @Public explícito.
 La autorización usa rol y estado de BD, no confía en un rol recibido del cliente.
 Una cuenta pending/suspended, eliminada o con rol desconocido no puede autenticarse.

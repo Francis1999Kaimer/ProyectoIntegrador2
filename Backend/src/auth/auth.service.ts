@@ -32,7 +32,7 @@ export class AuthService {
     const access_token = await this.jwt.signAsync({
       sub: user.id, role: user.role, session: this.sessionKey(user.password_hash), jti: randomUUID()
     });
-    return { access_token, token_type: 'Bearer', expires_in: 900, user: publicUser(user) };
+    return { access_token, token_type: 'Bearer', user: publicUser(user) };
   }
   async authenticate(token: string) {
     let payload: { sub?: unknown; session?: unknown };

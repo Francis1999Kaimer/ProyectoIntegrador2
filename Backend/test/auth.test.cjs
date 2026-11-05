@@ -65,7 +65,9 @@ test('real HTTP pipeline: login, me, safe projections and role matrix', async ()
       const login = await f.login(role);
       assert.equal(login.status, 200);
       assert.equal(login.headers.get('cache-control'), 'no-store');
-      assert.equal(login.body.expires_in, 900);
+      // La sesión no vence por tiempo: el token no trae exp.
+      assert.equal(login.body.expires_in, undefined);
+      assert.equal(JSON.parse(Buffer.from(login.body.access_token.split('.')[1], 'base64url').toString()).exp, undefined);
       assert.equal(login.body.user.password_hash, undefined);
       const token = login.body.access_token;
       const me = await f.call('/auth/me', token);
