@@ -2,6 +2,7 @@ import { type ReactNode } from 'react'
 import { Link, Navigate, useLocation } from 'react-router'
 import App from './App'
 import CreateProjectDynamic from './components/CreateProjectDynamic'
+import DatasetUpload from './components/DatasetUpload'
 import { AuthProvider, useAuth } from './auth/AuthProvider'
 import { LoginPage, PasswordPage } from './auth/AuthPages'
 import { ApiMessage, Page } from './components/AppShell'
@@ -23,6 +24,7 @@ function ProjectSelection({children}:{children:ReactNode}) {
 function RoutedExperience() {
   const {pathname} = useLocation()
   if (pathname==='/crear') return <CreateProjectDynamic/>
+  if (pathname==='/crear/datos') return <DatasetUpload/>
   let content:ReactNode = <App/>
   return workflowPaths.includes(pathname)?<ProjectSelection>{content}</ProjectSelection>:content
 }
