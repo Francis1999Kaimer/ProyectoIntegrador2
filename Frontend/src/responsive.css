@@ -486,3 +486,28 @@ code { max-width: 100%; }
     animation-iteration-count: 1 !important;
   }
 }
+
+/* Nuevo proyecto: diseño compacto que conserva desplazamiento en pantallas pequeñas. */
+.new-project-page { max-width: 1220px; padding-top: 16px; padding-bottom: 24px; }
+.new-project-page .back-link { display: inline-block; margin-bottom: 10px; }
+.new-project-panel { padding: 20px 24px; }
+.new-project-panel h1 { font-size: clamp(26px, 3vw, 34px); margin: 2px 0 14px; }
+.new-project-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; }
+.new-project-fields label { margin: 0; }
+.new-project-panel h2 { font-size: 18px; margin: 14px 0 2px; }
+.new-project-hint { font-size: 13px; margin: 0 0 8px; }
+.new-project-panel .project-type-selector { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; background: transparent; margin: 0; }
+.new-project-panel .project-type-option { min-height: 76px; grid-template-columns: 34px minmax(0, 1fr) 18px; gap: 8px; padding: 10px; align-items: center; }
+.new-project-panel .project-type-icon { width: 32px; height: 32px; }
+.new-project-panel .project-type-option strong { font-size: 14px; margin-bottom: 3px; }
+.new-project-panel .project-type-option small { font-size: 12px; }
+.new-project-panel .project-type-option:focus-visible { outline: 3px solid #0f62fe; outline-offset: 2px; z-index: 1; }
+.new-project-panel .wizard-actions { margin-top: 14px; padding-top: 12px; }
+@media (max-width: 850px) {
+  .new-project-panel .project-type-selector { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .new-project-fields, .new-project-panel .project-type-selector { grid-template-columns: 1fr; }
+  .new-project-panel { padding: 18px 14px; }
+  .new-project-panel .project-type-option { min-height: 64px; }
+}
