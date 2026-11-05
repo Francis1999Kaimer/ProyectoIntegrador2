@@ -105,7 +105,7 @@ function fresh(){
   current.rooms=[{id:uid(50),teacher_id:uid(2),name:'Salon piloto',course_id:uid(90),level_id:1,academic_year:2026,status:'active'}]
   current.enrolled.add(uid(50)+':'+uid(1))
   current.lesson={id:uid(60),title:'Leccion piloto',summary:'Contenido publicado',content:{sections:Array.from({length:5},(_,i)=>({title:'Seccion '+(i+1),text:i===0?'<img src=x onerror=alert(1)>':'Texto de lectura'}))}}
-  current.projects=[{id:uid(40),owner_id:uid(1),classroom_id:null,title:'Proyecto persistido',project_type:'image_classification',status:'draft',updated_at:'2026-10-09T10:00:00Z'}]
+  current.projects=[{id:uid(40),owner_id:uid(1),classroom_id:null,title:'Proyecto persistido',project_type:'character_recognition',status:'draft',updated_at:'2026-10-09T10:00:00Z'}]
 }
 async function mount(path='/login'){
   window.history.replaceState(null,'',path);document.body.innerHTML='<div id="root"></div>'
@@ -156,7 +156,7 @@ test('new project screen selects each type and advances to dataset validation',(
   assert.equal(window.location.pathname,'/crear/datos')
   assert.match(text(),/PASO 1 · DATOS DE ENTRENAMIENTO/)
   assert.match(text(),/Clasificador de dibujos simples/)
-  assert.ok(field('Dataset ZIP'))
+  assert.ok(document.querySelector('input[aria-label="Dataset ZIP"]'))
   assert.equal(current.requests.some(r=>r.method==='POST'&&r.path==='/projects'),false)
 }))
 test('teacher classroom form, roster enrollment and removal use real component event flow',()=>fixture(async()=>{
