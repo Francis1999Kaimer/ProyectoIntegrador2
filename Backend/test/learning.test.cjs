@@ -7,6 +7,7 @@ const { Test } = require('@nestjs/testing');
 const { USER_REPOSITORY } = require('../dist/repositories/contracts');
 const { LEARNING_REPOSITORY, DataConflict, DataMissing } = require('../dist/repositories/learning.contracts');
 const { PrismaService } = require('../dist/prisma/prisma.service');
+const { datasetBody, trainingDb } = require('./training-helpers.cjs');
 process.env.JWT_SECRET = 'unit-only-learning-secret-32-characters-long';
 process.env.DATABASE_URL = 'mysql://test:test@localhost:3306/unit_tests';
 process.env.NODE_ENV = 'test';
@@ -111,10 +112,10 @@ async function fixture() {
       user.password_hash = next; user.must_change_password = false; return true;
     }
   };
-  const storedLabs = new Map();
   const db = { $queryRaw: async () => [{ ok: 1 }] };
   db.projects = { findUnique: async ({where}) => projects.find(p => p.id === where.id) ?? null, create: async ({data}) => { if(projects.some(p=>p.id===data.id)) throw Object.assign(new Error('duplicate'),{code:'P2002'}); const p = {...data,status:'draft'}; projects.push(p); return p; } };
-  db.character_labs = { findUnique: async ({where}) => storedLabs.get(where.project_id) ?? null, create: async ({data}) => { if(storedLabs.has(data.project_id)) throw Object.assign(new Error('duplicate'),{code:'P2002'}); const row={...data,dataset_updated_at:new Date(),model_file_name:null,model_content_type:null,training_metrics_json:null,training_updated_at:null}; storedLabs.set(data.project_id,row); return row; } };
+  const training = trainingDb();
+  db.character_labs = training.db.character_labs; db.training_runs = training.db.training_runs;
   db.$transaction = async fn => fn(db);
   const module = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(USER_REPOSITORY).useValue(authRepo)
@@ -133,7 +134,7 @@ async function fixture() {
     }, body: body === undefined ? undefined : JSON.stringify(body) });
     return { status: response.status, body: response.status === 204 ? null : await response.json() };
   }
-  return { app, base, users, a, b, t, other, admin, course, room, rooms, otherRoom, projects, repo, call, lessonId, progress, snapshots, workspaces, simulations, enrollments };
+  return { app, base, tokens, users, a, b, t, other, admin, course, room, rooms, otherRoom, projects, repo, call, lessonId, progress, snapshots, workspaces, simulations, enrollments };
 }
 const graph = { schemaVersion: 1, nodes: [{ id: 'n1', position: { x: 0, y: 0 }, data: { label: 'Input' } }], edges: [] };
 const simulationGraph = { schemaVersion: 1, nodes: [
@@ -346,35 +347,38 @@ test('local smoke script completes all HTTP stages and archives only its synthet
   }
 }));
 
-test('new project with dataset requires auth, supports each type, and prevents cross-owner access', () => withFixture(async f => {
-  const types=['character_recognition','image_classification','sound_recognition','hand_gesture_classification','body_posture_classification','drawing_classification'];
-  for(const project_type of types) {
-    const body={request_id:randomUUID(),title:'Dataset test',project_type,file_name:'test.zip',content_type:'application/zip',archive_base64:Buffer.from([0x50,0x4b,3,4]).toString('base64'),labels:['A','B'],samples:12};
-    assert.equal((await f.call(null,'POST','/projects/with-dataset',body)).status,401);
-    const created=await f.call(f.a,'POST','/projects/with-dataset',body);
-    assert.equal(created.status,201); assert.equal(created.body.owner_id,f.a.id);
-    const retry=await f.call(f.a,'POST','/projects/with-dataset',body);
-    assert.equal(retry.status,201); assert.equal(retry.body.id,created.body.id);
-    assert.equal((await f.call(f.b,'GET','/projects/'+created.body.id+'/character-lab')).status,404);
-    const stored=await f.call(f.a,'GET','/projects/'+created.body.id+'/character-lab');
-    assert.equal(stored.status,200); assert.equal(stored.body.dataset.samples,12);
-  }
-}));
-
-test('draft survives without dataset; initial upload is owner-only and cannot overwrite', () => withFixture(async f => {
-  const draft={request_id:randomUUID(),title:'Draft test',project_type:'image_classification'};
+test('draft survives without dataset; the training flow API is owner-only and enforces the dataset lock', () => withFixture(async f => {
+  const draft={request_id:randomUUID(),title:'Draft test',project_type:'image_classification',classroom_id:f.room.id};
   assert.equal((await f.call(null,'POST','/projects/draft',draft)).status,401);
   const created=await f.call(f.a,'POST','/projects/draft',draft);
   assert.equal(created.status,201);
   const repeat=await f.call(f.a,'POST','/projects/draft',draft);
   assert.equal(repeat.body.id,created.body.id);
-  assert.equal((await f.call(f.b,'POST','/projects/draft',draft)).status,409);
+  assert.equal((await f.call(f.b,'POST','/projects/draft',draft)).status,404);
+  assert.equal((await f.call(f.admin,'POST','/projects/draft',draft)).status,409);
   const path='/projects/'+created.body.id;
-  assert.equal((await f.call(f.a,'GET',path+'/character-lab')).body.dataset,null);
-  const dataset={file_name:'test.zip',content_type:'application/zip',archive_base64:Buffer.from([0x50,0x4b,3,4]).toString('base64'),labels:['A','B'],samples:4};
+  assert.equal((await f.call(null,'GET',path+'/training')).status,401);
+  const empty=await f.call(f.a,'GET',path+'/training');
+  assert.equal(empty.status,200); assert.equal(empty.body.dataset,null); assert.equal(empty.body.step,1);
+  const dataset=await datasetBody({perLabel:10});
   assert.equal((await f.call(f.b,'POST',path+'/dataset',dataset)).status,404);
-  assert.equal((await f.call(f.a,'POST',path+'/dataset',dataset)).status,201);
+  assert.equal((await f.call(f.a,'POST',path+'/dataset',{...dataset,samples:21})).status,400);
+  const saved=await f.call(f.a,'POST',path+'/dataset',dataset);
+  assert.equal(saved.status,201); assert.equal(saved.body.dataset.samples,20); assert.equal(saved.body.dataset.can_replace,true);
   assert.equal((await f.call(f.a,'POST',path+'/dataset',dataset)).status,409);
-  const stored=await f.call(f.a,'GET',path+'/character-lab');
-  assert.equal(stored.body.dataset.file_name,'test.zip');assert.equal(stored.body.dataset.samples,4);
+  // El docente del salón consulta en solo lectura.
+  const viewer=await f.call(f.t,'GET',path+'/training');
+  assert.equal(viewer.status,200); assert.equal(viewer.body.editable,false);
+  assert.equal((await f.call(f.t,'POST',path+'/dataset/lock')).status,404);
+  assert.equal((await f.call(f.b,'GET',path+'/dataset/file')).status,404);
+  const file=await fetch(f.base+path+'/dataset/file',{headers:{Authorization:'Bearer '+f.tokens[f.a.id]}});
+  assert.equal(file.status,200); assert.equal(Buffer.from(await file.arrayBuffer()).toString('base64'),dataset.archive_base64);
+  const locked=await f.call(f.a,'POST',path+'/dataset/lock');
+  assert.equal(locked.status,201); assert.equal(locked.body.step,2); assert.equal(locked.body.dataset.can_replace,false);
+  assert.equal((await f.call(f.a,'PUT',path+'/dataset',{...dataset,expected_updated_at:locked.body.dataset.updated_at})).status,409);
+  assert.equal((await f.call(f.a,'PUT',path+'/training/preparation',{test_percent:25})).status,400);
+  assert.equal((await f.call(f.a,'PUT',path+'/training/preparation',{test_percent:20})).body.step,3);
+  assert.equal((await f.call(f.a,'PUT',path+'/training/config',{epochs:40,learning_rate:0.001,batch_size:16,model_size:'medium'})).status,400);
+  assert.equal((await f.call(f.a,'PUT',path+'/training/config',{epochs:12,learning_rate:0.001,batch_size:16,model_size:'medium'})).body.step,4);
+  assert.equal((await f.call(f.a,'GET',path+'/training/model-file')).status,404);
 }));

@@ -3,7 +3,7 @@ import { PasswordService } from '../auth/password.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PageRequest, Project, SimulationRun, Workspace } from '../repositories/contracts';
 import { Actor, LEARNING_REPOSITORY, LearningRepository } from '../repositories/learning.contracts';
-import { CharacterDatasetDto, CharacterTrainingDto, ClassroomDto, ClassroomPatchDto, ConsentDto, ProjectDto, ProjectPatchDto, ProjectWithDatasetDto, ProjectDraftDto, InitialDatasetDto, StudentDto, TeacherDto, WorkspaceDto } from './learning.dto';
+import { ClassroomDto, ClassroomPatchDto, ConsentDto, ProjectDto, ProjectPatchDto, ProjectDraftDto, StudentDto, TeacherDto, WorkspaceDto } from './learning.dto';
 import { simulatePedagogically } from './pedagogical-simulation';
 
 @Injectable()
@@ -114,44 +114,6 @@ export class LearningService {
       throw error;
     }
   }
-  async saveInitialDataset(actor: Actor, projectId: string, input: InitialDatasetDto) {
-    const project = await this.project(actor, projectId, true);
-    if (project.status === 'archived') throw new BadRequestException('El proyecto está archivado.');
-    if (project.project_type === 'character_recognition' && input.samples < 12) throw new BadRequestException('Se necesitan al menos 12 imágenes para caracteres.');
-    const labels = this.labels(input.labels), bytes = this.archive(input.archive_base64, 'El dataset');
-    try {
-      const row = await this.db.character_labs.create({ data: {
-        project_id: projectId, dataset_file_name: input.file_name, dataset_content_type: input.content_type,
-        dataset_bytes: bytes, dataset_labels_json: JSON.stringify(labels), dataset_samples: input.samples
-      } });
-      return this.labView(row);
-    } catch (error) {
-      if ((error as {code?: string})?.code === 'P2002') throw new ConflictException('Este proyecto ya tiene un dataset. Actualiza la página.');
-      throw error;
-    }
-  }
-  async createProjectWithDataset(actor: Actor, input: ProjectWithDatasetDto) {
-    if (input.classroom_id) {
-      const room = await this.classroom(actor, input.classroom_id);
-      if (room.status !== 'active') throw new BadRequestException('El salón está archivado.');
-    }
-    if (input.project_type === 'character_recognition' && input.samples < 12) throw new BadRequestException('Se necesitan al menos 12 imágenes para caracteres.');
-    const labels = this.labels(input.labels), bytes = this.archive(input.archive_base64, 'El dataset');
-    return this.db.$transaction(async tx => {
-      const existing = await tx.projects.findUnique({ where: { id: input.request_id } });
-      if (existing) {
-        const lab = await tx.character_labs.findUnique({ where: { project_id: existing.id } });
-        if (existing.owner_id !== actor.id || existing.title !== input.title || existing.project_type !== input.project_type ||
-            existing.classroom_id !== (input.classroom_id ?? null) || !lab || lab.dataset_file_name !== input.file_name ||
-            lab.dataset_samples !== input.samples || lab.dataset_labels_json !== JSON.stringify(labels) ||
-            !Buffer.from(lab.dataset_bytes).equals(bytes)) throw new BadRequestException('No se pudo repetir el guardado; inicia un proyecto nuevo.');
-        return existing;
-      }
-      const project = await tx.projects.create({ data: { id: input.request_id, owner_id: actor.id, title: input.title, project_type: input.project_type, classroom_id: input.classroom_id ?? null } });
-      await tx.character_labs.create({ data: { project_id: project.id, dataset_file_name: input.file_name, dataset_content_type: input.content_type, dataset_bytes: bytes, dataset_labels_json: JSON.stringify(labels), dataset_samples: input.samples } });
-      return project;
-    });
-  }
   async updateProject(actor: Actor, id: string, input: ProjectPatchDto) {
     await this.project(actor, id, true);
     if (!Object.values(input).some(value => value !== undefined)) throw new BadRequestException('Indica un campo para actualizar.');
@@ -197,92 +159,6 @@ export class LearningService {
       provider: result.provider, seed: result.seed, parameters_json: JSON.stringify(result.parameters),
       metrics_json: JSON.stringify(result.metrics), accuracy: result.accuracy, loss: result.loss
     }));
-  }
-  private readonly maxCharacterArchiveBytes = 15 * 1024 * 1024;
-  private archive(base64: string, subject: string) {
-    // Buffer.from accepts malformed input silently; validate the canonical Base64
-    // form before retaining it in the database.
-    if (!/^[A-Za-z0-9+/]+={0,2}$/.test(base64) || base64.length % 4 !== 0) {
-      throw new BadRequestException(`${subject} invÃ¡lido.`);
-    }
-    const bytes = Buffer.from(base64, 'base64');
-    if (bytes.length < 4 || bytes.length > this.maxCharacterArchiveBytes || bytes[0] !== 0x50 || bytes[1] !== 0x4b) {
-      throw new BadRequestException(`${subject} debe ser un ZIP de hasta 15 MB.`);
-    }
-    return bytes;
-  }
-  private labels(values: string[]) {
-    const labels = values.map(value => value.trim());
-    if (labels.some(value => !value) || new Set(labels).size !== labels.length) {
-      throw new BadRequestException('Las etiquetas del dataset no son vÃ¡lidas.');
-    }
-    return labels.sort((a, b) => a.localeCompare(b));
-  }
-  private labView(row: { project_id: string; dataset_file_name: string; dataset_content_type: string; dataset_labels_json: string; dataset_samples: number; dataset_updated_at: Date; model_file_name: string | null; model_content_type: string | null; training_metrics_json: string | null; training_updated_at: Date | null }) {
-    const labels = JSON.parse(row.dataset_labels_json) as string[];
-    const metrics = row.training_metrics_json ? JSON.parse(row.training_metrics_json) as { labels: string[]; epochs: number; accuracy: number; loss: number; history: unknown[] } : null;
-    return {
-      project_id: row.project_id,
-      dataset: { file_name: row.dataset_file_name, content_type: row.dataset_content_type, labels, samples: row.dataset_samples, updated_at: row.dataset_updated_at },
-      training: metrics && row.model_file_name && row.model_content_type && row.training_updated_at ? {
-        file_name: row.model_file_name, content_type: row.model_content_type, ...metrics, updated_at: row.training_updated_at
-      } : null
-    };
-  }
-  async characterLab(actor: Actor, projectId: string) {
-    await this.project(actor, projectId);
-    const row = await this.db.character_labs.findUnique({ where: { project_id: projectId }, select: {
-      project_id: true, dataset_file_name: true, dataset_content_type: true, dataset_labels_json: true, dataset_samples: true, dataset_updated_at: true,
-      model_file_name: true, model_content_type: true, training_metrics_json: true, training_updated_at: true
-    } });
-    return row ? this.labView(row) : { project_id: projectId, dataset: null, training: null };
-  }
-  async saveCharacterDataset(actor: Actor, projectId: string, input: CharacterDatasetDto) {
-    const project = await this.project(actor, projectId, true);
-    if (project.status === 'archived') throw new BadRequestException('El proyecto estÃ¡ archivado.');
-    const labels = this.labels(input.labels), bytes = this.archive(input.archive_base64, 'El dataset');
-    const row = await this.db.character_labs.upsert({ where: { project_id: projectId }, create: {
-      project_id: projectId, dataset_file_name: input.file_name, dataset_content_type: input.content_type, dataset_bytes: bytes,
-      dataset_labels_json: JSON.stringify(labels), dataset_samples: input.samples
-    }, update: {
-      dataset_file_name: input.file_name, dataset_content_type: input.content_type, dataset_bytes: bytes,
-      dataset_labels_json: JSON.stringify(labels), dataset_samples: input.samples, dataset_updated_at: new Date(),
-      model_file_name: null, model_content_type: null, model_bytes: null, training_metrics_json: null, training_updated_at: null
-    }, select: {
-      project_id: true, dataset_file_name: true, dataset_content_type: true, dataset_labels_json: true, dataset_samples: true, dataset_updated_at: true,
-      model_file_name: true, model_content_type: true, training_metrics_json: true, training_updated_at: true
-    } });
-    return this.labView(row);
-  }
-  async characterDatasetFile(actor: Actor, projectId: string) {
-    await this.project(actor, projectId);
-    const row = await this.db.character_labs.findUnique({ where: { project_id: projectId }, select: { dataset_file_name: true, dataset_content_type: true, dataset_bytes: true } });
-    if (!row) throw new NotFoundException('AÃºn no hay un dataset para este proyecto.');
-    return { file_name: row.dataset_file_name, content_type: row.dataset_content_type, bytes: row.dataset_bytes };
-  }
-  async saveCharacterTraining(actor: Actor, projectId: string, input: CharacterTrainingDto) {
-    await this.project(actor, projectId, true);
-    const row = await this.db.character_labs.findUnique({ where: { project_id: projectId }, select: { dataset_labels_json: true } });
-    if (!row) throw new BadRequestException('Carga un dataset antes de guardar el entrenamiento.');
-    const labels = this.labels(input.labels), datasetLabels = JSON.parse(row.dataset_labels_json) as string[];
-    if (JSON.stringify(labels) !== JSON.stringify(datasetLabels)) throw new BadRequestException('El modelo no corresponde al dataset actual.');
-    const bytes = this.archive(input.archive_base64, 'El modelo');
-    const metrics = { labels, epochs: input.epochs, accuracy: input.accuracy, loss: input.loss, history: input.history };
-    await this.db.character_labs.update({ where: { project_id: projectId }, data: {
-      model_file_name: input.file_name, model_content_type: input.content_type, model_bytes: bytes,
-      training_metrics_json: JSON.stringify(metrics), training_updated_at: new Date()
-    } });
-    return this.characterLab(actor, projectId);
-  }
-  async characterModelFile(actor: Actor, projectId: string) {
-    await this.project(actor, projectId);
-    const row = await this.db.character_labs.findUnique({ where: { project_id: projectId }, select: { model_file_name: true, model_content_type: true, model_bytes: true } });
-    if (!row?.model_file_name || !row.model_content_type || !row.model_bytes) throw new NotFoundException('AÃºn no hay un modelo entrenado para este proyecto.');
-    return { file_name: row.model_file_name, content_type: row.model_content_type, bytes: row.model_bytes };
-  }
-  async clearCharacterLab(actor: Actor, projectId: string) {
-    await this.project(actor, projectId, true);
-    await this.db.character_labs.deleteMany({ where: { project_id: projectId } });
   }
   private graph(blocks: Record<string, unknown>): string {
     const fail = () => { throw new BadRequestException('Grafo inválido: schemaVersion 1, nodos y aristas válidos; máximo 64 KiB.'); };

@@ -4,5 +4,5 @@ import { RepositoriesModule } from '../repositories/repositories.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { LearningController } from './learning.controller';
 import { LearningService } from './learning.service';
-@Module({ imports: [RepositoriesModule, PrismaModule], controllers: [LearningController], providers: [LearningService, PasswordService] })
+@Module({ imports: [RepositoriesModule, PrismaModule], controllers: [LearningController], providers: [LearningService, PasswordService], exports: [LearningService] })
 export class LearningModule {}
