@@ -36,6 +36,7 @@
 .training-table th, .training-table td { text-align: left; padding: 9px 10px; border-bottom: 1px solid #e0e0e0; white-space: nowrap; }
 .training-table th { font-weight: 600; background: #f4f4f4; }
 .training-table tr.selected td { background: #edf5ff; }
+.history-table th { white-space: normal; vertical-align: bottom; }
 .epoch-table { max-height: 280px; overflow-y: auto; margin-top: 12px; }
 .tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; font-size: 12px; border-radius: 12px; white-space: nowrap; }
 .ok-tag { background: #defbe6; color: #0e6027; }

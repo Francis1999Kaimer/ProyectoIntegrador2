@@ -365,7 +365,7 @@ test('step 5 shows test results, confusions, diagnosis and the training history;
   const first=run(1,{metrics:{...run(1).metrics,test_accuracy:0.5,test_correct:2,confusion:[[1,1],[1,1]],per_class:[{label:'A',total:2,correct:1},{label:'B',total:2,correct:1}]}})
   const p=await seedProject({runs:[first,run(2)]})
   await mount('/crear/evaluar?project='+p.id);await login();await waitFor(()=>/Resultados con el conjunto de prueba/.test(text()))
-  assert.match(text(),/75\.0 %/);assert.match(text(),/Acertó 3 de 4 ejemplos de prueba/);assert.match(text(),/Posible sobreajuste/)
+  assert.match(text(),/75\.0\s%/);assert.match(text(),/Acertó 3 de 4 ejemplos de prueba/);assert.match(text(),/Posible sobreajuste/)
   assert.match(text(),/A se confundió con B 1 vez/);assert.match(text(),/Entrenamiento 2 de 2/)
   assert.ok(document.querySelector('.confusion-table'));assert.equal(document.querySelectorAll('.training-stepper li').length,7)
   await click('Ver');assert.match(text(),/Entrenamiento 1 de 2/)

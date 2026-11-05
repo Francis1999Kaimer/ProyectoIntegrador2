@@ -36,4 +36,4 @@ export const inputLabels: Record<InputKind, string> = {
   spec64: 'Espectrograma de 64 × 64 (64×64×1)'
 }
 export const isLegacy = (metrics: RunMetrics | LegacyMetrics): metrics is LegacyMetrics => 'legacy' in metrics && metrics.legacy === true
-export const percent = (value: number, digits = 1) => (value * 100).toFixed(digits) + ' %'
+export const percent = (value: number, digits = 1) => (value * 100).toFixed(digits) + ' %'

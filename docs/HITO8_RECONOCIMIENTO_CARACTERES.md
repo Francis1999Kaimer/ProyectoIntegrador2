@@ -1,5 +1,7 @@
 # Hito 8 — Laboratorio de reconocimiento de caracteres
 
+> **Reemplazado.** El flujo actual, para los seis tipos de proyecto, está en [FLUJO_ENTRENAMIENTO.md](FLUJO_ENTRENAMIENTO.md). Este documento se conserva como registro del hito.
+
 El sistema ofrece un único tipo de proyecto: `character_recognition`. Cada proyecto entrena una CNN pequeña en el navegador con TensorFlow.js; no hay modelos genéricos ni resultados simulados en la interfaz.
 
 ## Dataset admitido

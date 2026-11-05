@@ -70,7 +70,7 @@ function TrainRunner({ projectId, project, state, setState, setLocked }: StepCon
         hardware: { ...found, epoch_estimate_ms: epochMs }, model_base64: await toBase64(result.modelZip)
       } })
       await rememberModel(projectId, runNumber, result.modelZip)
-      setState(next); setSaved(next.runs.at(-1))
+      setState(next); setSaved(next.runs.at(-1)); setProgress(undefined)
     } catch (e) { setError((e as Error).message) }
     finally { setRunning(false); setLocked(false); setElapsed(performance.now() - started.current) }
   }

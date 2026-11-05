@@ -16,7 +16,7 @@ export const trainingPath = (id: string) => `/projects/${encodeURIComponent(id)}
 export function useProjectId() { return new URLSearchParams(useLocation().search).get('project') }
 
 export function TrainingStepper({ projectId, current, state, locked = false }: { projectId: string; current: number; state: TrainingState | null; locked?: boolean }) {
-  const reached = state ? reachedStep(state) : 1, completed = state?.step ?? 1
+  const reached = state ? reachedStep(state) : 1, completed = state ? reachedStep(state) : 1
   return <nav className="training-stepper" aria-label="Pasos del proyecto"><ol>
     {stepNames.map((name, i) => {
       const done = i < completed, active = i === current

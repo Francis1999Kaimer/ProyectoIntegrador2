@@ -114,7 +114,7 @@ function PredictionContent({ projectId, project, state }: StepContext) {
     {!run ? <section className="panel empty-state"><p>Aún no hay un modelo entrenado.</p><Link to={stepUrl(4, projectId)}>Entrenar modelo</Link></section> : <>
       <div className="training-grid">
         <section className="panel training-card">
-          <div className="tab-row" role="tablist">{modes[kind].map(item => <button key={item.id} type="button" role="tab" aria-selected={mode === item.id} className={mode === item.id ? 'primary' : 'secondary'} onClick={() => setMode(item.id)}>{item.label}</button>)}</div>
+          <div className="tab-row" role="tablist">{modes[kind].map(item => <button key={item.id} type="button" role="tab" aria-selected={mode === item.id} className={mode === item.id ? 'active' : ''} onClick={() => setMode(item.id)}>{item.label}</button>)}</div>
           {!loaded && !error && <p role="status" className="dataset-progress">Cargando el modelo…</p>}
           {loaded && mode === 'draw' && <DrawingPad onReady={blob => void recognize(blob)} />}
           {loaded && mode === 'camera' && <CameraCapture onReady={blob => void recognize(blob)} />}
