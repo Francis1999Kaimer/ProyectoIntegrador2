@@ -36,7 +36,7 @@ globalThis.fetch=async(url,options={})=>{
   }
   if(user.must_change_password)return json(403,{})
   if(path==='/catalog')return json(200,{levels:[{id:1,name:'Exploradores'}],courses:[{id:uid(90),title:'Curso piloto'}]})
-  if(path==='/projects/with-dataset'&&method==='POST'){
+  if(path==='/projects/draft'&&method==='POST'){
     const p={id:body.request_id,owner_id:user.id,title:body.title,project_type:body.project_type,status:'draft'}
     current.projects.push(p);return json(201,p)
   }
@@ -47,6 +47,12 @@ globalThis.fetch=async(url,options={})=>{
   }
   if(path.startsWith('/projects/')){
     const [, , projectId, resource] = path.split('/'),p=current.projects.find(p=>p.id===projectId);if(!p)return json(404,{})
+    if(resource==='character-lab'&&method==='GET')return json(200,{project_id:projectId,dataset:current.labs.get(projectId)??null,training:null})
+    if(resource==='dataset'&&method==='POST'){
+      if(current.labs.has(projectId))return json(409,{})
+      current.labs.set(projectId,{file_name:body.file_name,labels:body.labels,samples:body.samples,updated_at:new Date().toISOString()})
+      return json(201,{})
+    }
     if(resource==='workspace'){
       if(method==='GET'){const workspace=current.workspaces.get(projectId);return workspace?json(200,workspace):json(404,{})}
       const previous=current.workspaces.get(projectId),workspace={id:previous?.id??uid(++current.sequence+500),project_id:projectId,version:(previous?.version??0)+1,blocks:body.blocks};current.workspaces.set(projectId,workspace);return json(200,workspace)
@@ -107,7 +113,7 @@ const {AuthProvider,Gate,api,setToken,getToken,useProjectStore}=await import('..
 let root
 function fresh(){
   for(const key of [...Object.keys(sessionStorage)])if(key.startsWith('aiblocks.login-throttle.'))sessionStorage.removeItem(key)
-  current={users:['student','teacher','admin'].map((role,i)=>({id:uid(i+1),username:role,display_name:'Test '+role,role,status:'active',must_change_password:false,password:PASSWORD})),tokens:new Map(),sequence:0,requests:[],projects:[],progress:[],simulations:[],workspaces:new Map(),consents:new Set([uid(1)]),enrolled:new Set()}
+  current={users:['student','teacher','admin'].map((role,i)=>({id:uid(i+1),username:role,display_name:'Test '+role,role,status:'active',must_change_password:false,password:PASSWORD})),tokens:new Map(),sequence:0,requests:[],projects:[],labs:new Map(),progress:[],simulations:[],workspaces:new Map(),consents:new Set([uid(1)]),enrolled:new Set()}
   current.rooms=[{id:uid(50),teacher_id:uid(2),name:'Salon piloto',course_id:uid(90),level_id:1,academic_year:2026,status:'active'}]
   current.enrolled.add(uid(50)+':'+uid(1))
   current.lesson={id:uid(60),title:'Leccion piloto',summary:'Contenido publicado',content:{sections:Array.from({length:5},(_,i)=>({title:'Seccion '+(i+1),text:i===0?'<img src=x onerror=alert(1)>':'Texto de lectura'}))}}
@@ -158,12 +164,12 @@ test('new project screen selects each type and advances to dataset validation',(
     assert.ok(details.textContent.includes(expected[i][1]))
     if(i>0)assert.match(details.textContent,/Formato propuesto/)
   }
-  await click('Siguiente')
+  await click('Crear proyecto y siguiente')
   assert.equal(window.location.pathname,'/crear/datos')
   assert.match(text(),/PASO 1 · DATOS DE ENTRENAMIENTO/)
   assert.match(text(),/Clasificador de dibujos simples/)
   assert.ok(document.querySelector('input[aria-label="Dataset ZIP"]'))
-  assert.equal(current.requests.some(r=>r.method==='POST'&&r.path==='/projects'),false)
+  assert.ok(current.requests.some(r=>r.method==='POST'&&r.path==='/projects/draft'))
 }))
 test('teacher classroom form, roster enrollment and removal use real component event flow',()=>fixture(async()=>{
   await mount();await login('teacher');await click('Salones');await click('Crear salón');await fill('Nombre','Salon nuevo DOM');await fill('Nivel','1');await fill('Curso',uid(90));await submit('Nombre')
@@ -234,7 +240,7 @@ test('late 401 from an old request does not clear a newly authenticated session'
 test('validated image dataset saves project and archive through the API',()=>fixture(async()=>{
   await mount();await login();await click('Crear proyecto');await fill('Nombre del proyecto','Proyecto con datos')
   const choice=[...document.querySelectorAll('.project-type-option')].find(item=>item.textContent.includes('Clasificador de imágenes'))
-  await act(async()=>{choice.click();await Promise.resolve()});await click('Siguiente')
+  await act(async()=>{choice.click();await Promise.resolve()});await click('Crear proyecto y siguiente')
   const zip=new JSZip()
   for(const name of ['A/1.png','A/2.png','B/1.jpg','B/2.jpg'])zip.file(name,new Uint8Array([1,2,3]))
   const file=new NodeFile([await zip.generateAsync({type:'uint8array'})],'datos.zip',{type:'application/zip'})
@@ -243,9 +249,15 @@ test('validated image dataset saves project and archive through the API',()=>fix
   Object.defineProperty(input,'files',{value:[file],configurable:true})
   await act(async()=>{input.dispatchEvent(new window.Event('change',{bubbles:true}));await new Promise(resolve=>setTimeout(resolve,40))})
   assert.match(text(),/ZIP validado/)
-  await click('Guardar proyecto y dataset')
-  assert.match(text(),/Proyecto y dataset guardados correctamente/)
-  const req=current.requests.find(r=>r.path==='/projects/with-dataset')
-  assert.equal(req.body.project_type,'image_classification');assert.equal(req.body.samples,4)
+  await click('Guardar dataset');await settle()
+  assert.match(text(),/ZIP guardado/)
+  const created=current.projects.find(p=>p.title==='Proyecto con datos')
+  assert.equal(created.project_type,'image_classification')
+  const req=current.requests.find(r=>r.path==='/projects/'+created.id+'/dataset')
+  assert.equal(req.body.samples,4)
   assert.deepEqual(req.body.labels,['A','B']);assert.ok(req.body.archive_base64)
+  await unmount();await mount('/crear/datos?project='+created.id);await settle()
+  assert.match(text(),/ZIP guardado/);assert.match(text(),/datos.zip/)
+  assert.ok([...document.querySelectorAll('button')].find(b=>b.textContent.includes('Paso 2')).disabled)
+  assert.equal(document.querySelector('input[aria-label="Dataset ZIP"]'),null)
 }))
