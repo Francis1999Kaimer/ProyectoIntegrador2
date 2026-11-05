@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Classroom } from '../repositories/contracts';
 import { Actor } from '../repositories/learning.contracts';
 import { LearningService } from '../learning/learning.service';
+import { taughtBy } from '../repositories/prisma.learning.repository';
 import { AssignmentDto, AssignmentPatchDto, GradeDto, SubmissionDto } from './assignments.dto';
 
 type Row = {
@@ -30,7 +31,7 @@ export class AssignmentsService {
     const room = await this.learning.classroom(actor, classroomId);
     const rows = await this.db.assignments.findMany({ where: { classroom_id: classroomId }, orderBy: [{ ends_at: 'asc' }, { id: 'asc' }] }) as Row[];
     const ids = rows.map(row => row.id);
-    if (this.manages(actor, room)) {
+    if (await this.learning.managesClassroom(actor, room)) {
       const students = await this.learning.classroomStudents(actor, classroomId, ROSTER);
       const subs = ids.length ? await this.db.assignment_submissions.findMany({ where: { assignment_id: { in: ids } }, select: { assignment_id: true, grade: true } }) : [];
       return rows.map(row => {
@@ -47,7 +48,7 @@ export class AssignmentsService {
   async detail(actor: Actor, id: string) {
     const row = await this.find(id), room = await this.learning.classroom(actor, row.classroom_id);
     const classroom = { id: room.id, name: room.name, status: room.status };
-    if (this.manages(actor, room)) {
+    if (await this.learning.managesClassroom(actor, room)) {
       const students = await this.learning.classroomStudents(actor, row.classroom_id, ROSTER);
       const subs = await this.db.assignment_submissions.findMany({ where: { assignment_id: id } }) as SubmissionRow[];
       const projects = subs.length ? await this.db.projects.findMany({ where: { id: { in: subs.map(sub => sub.project_id) } }, select: { id: true, title: true, project_type: true } }) : [];
@@ -82,7 +83,7 @@ export class AssignmentsService {
       });
       return { tasks: rows.map(row => ({ ...this.view(row as Row), classroom_name: row.rel_fk_assignments_classroom.name })), to_grade: [] };
     }
-    const rooms = { status: 'active', ...(actor.role === 'admin' ? {} : { teacher_id: actor.id }) };
+    const rooms = { status: 'active', ...(actor.role === 'admin' ? {} : taughtBy(actor.id)) };
     const subs = await this.db.assignment_submissions.findMany({ where: { grade: null, rel_fk_submissions_assignment: { rel_fk_assignments_classroom: rooms } }, select: { assignment_id: true } });
     const counts = new Map<string, number>();
     for (const sub of subs) counts.set(sub.assignment_id, (counts.get(sub.assignment_id) ?? 0) + 1);
@@ -156,7 +157,6 @@ export class AssignmentsService {
   }
 
   // ---------- Reglas ----------
-  private manages(actor: Actor, room: Classroom) { return actor.role === 'admin' || (actor.role === 'teacher' && room.teacher_id === actor.id); }
   private active(room: Classroom) { if (room.status !== 'active') throw new BadRequestException('El salón está archivado.'); }
   private async find(id: string) {
     const row = await this.db.assignments.findUnique({ where: { id } }) as Row | null;

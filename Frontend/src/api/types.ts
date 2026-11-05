@@ -4,6 +4,7 @@ export interface Project { id: string; owner_id: string; classroom_id: string | 
 export interface Classroom { id: string; teacher_id: string; level_id: number; course_id: string | null; name: string; school_name: string | null; academic_year: number; course_start_date: string; status: string }
 export interface Student { id: string; username: string; display_name: string; status: string }
 export interface Teacher { id: string; username: string; display_name: string; status: string }
+export interface ClassroomTeacher extends Teacher { responsible: boolean }
 export interface Consent { guardian_name: string; consent_version: string; consented_at: string }
 export interface Catalog { levels: { id: number; name: string; slug: string }[]; courses: { id: string; title: string; slug: string }[] }
 export interface Section { type?: string; title?: string; text?: string; questions?: { question: string; options: string[] }[] }

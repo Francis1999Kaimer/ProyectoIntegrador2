@@ -4,6 +4,7 @@ import { Classroom, LessonProgress, PageRequest, Project, SimulationRun, Workspa
 export interface Actor { id: string; role: string; }
 export interface Student { id: string; username: string; display_name: string; status: string; }
 export interface Teacher { id: string; username: string; display_name: string; status: string; }
+export interface ClassroomTeacher extends Teacher { responsible: boolean; }
 export interface ConsentSummary { guardian_name: string; consent_version: string; consented_at: Date; }
 export interface NewStudent { username: string; display_name: string; password_hash: string; }
 // El alumno se crea activo con su consentimiento registrado y, si se indica, matriculado.
@@ -49,6 +50,12 @@ export interface LearningRepository {
   listClassrooms(actor: Actor, page: PageRequest): Promise<Classroom[]>;
   classroom(id: string): Promise<Classroom | null>;
   enrolled(classroomId: string, studentId: string): Promise<boolean>;
+  // Responsable o docente adicional del salón.
+  teachesClassroom(classroomId: string, teacherId: string): Promise<boolean>;
+  classroomTeachers(classroomId: string): Promise<ClassroomTeacher[]>;
+  eligibleTeachers(classroomId: string, page: PageRequest): Promise<Teacher[]>;
+  addClassroomTeacher(classroomId: string, teacherId: string, addedBy: string): Promise<void>;
+  removeClassroomTeacher(classroomId: string, teacherId: string): Promise<void>;
   createClassroom(input: NewClassroom): Promise<Classroom>;
   updateClassroom(id: string, input: ClassroomPatch): Promise<Classroom>;
   classroomStudents(id: string, page: PageRequest): Promise<Student[]>;

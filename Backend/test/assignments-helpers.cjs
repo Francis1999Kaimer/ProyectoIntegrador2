@@ -1,11 +1,13 @@
 // Doble en memoria de las tablas que usa AssignmentsService (no es un archivo *.test.cjs).
 const { randomUUID } = require('node:crypto')
 
-function assignmentsDb({ rooms = [], enrollments = new Set(), users = [], projects = [], runs = [] } = {}) {
+function assignmentsDb({ rooms = [], enrollments = new Set(), users = [], projects = [], runs = [], coTeachers = new Set() } = {}) {
   const assignments = [], submissions = []
   const room = id => rooms.find(r => r.id === id)
   const roomMatches = (r, where) => !!r && Object.entries(where).every(([key, value]) =>
-    key === 'back_fk_enrollments_classroom' ? enrollments.has(r.id + ':' + value.some.student_id) : r[key] === value)
+    key === 'OR' ? value.some(part => roomMatches(r, part))
+    : key === 'back_fk_classroom_teachers_classroom' ? coTeachers.has(r.id + ':' + value.some.teacher_id)
+    : key === 'back_fk_enrollments_classroom' ? enrollments.has(r.id + ':' + value.some.student_id) : r[key] === value)
   function matches(row, where = {}, kind) {
     return Object.entries(where).every(([key, value]) => {
       if (key === 'OR') return value.some(part => matches(row, part, kind))
@@ -57,9 +59,10 @@ function assignmentsDb({ rooms = [], enrollments = new Set(), users = [], projec
 }
 
 /** Repositorio mínimo para LearningService.classroom y classroomStudents. */
-function learningRepo({ rooms, enrollments, users }) {
+function learningRepo({ rooms, enrollments, users, coTeachers = new Set() }) {
   return {
     classroom: async id => rooms.find(r => r.id === id) ?? null,
+    teachesClassroom: async (id, teacher) => coTeachers.has(id + ':' + teacher) || rooms.some(r => r.id === id && r.teacher_id === teacher),
     enrolled: async (id, student) => enrollments.has(id + ':' + student),
     classroomStudents: async id => users.filter(u => u.role === 'student' && enrollments.has(id + ':' + u.id)).map(({ id, username, display_name, status }) => ({ id, username, display_name, status }))
   }

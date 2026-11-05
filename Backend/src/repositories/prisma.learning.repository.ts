@@ -10,6 +10,8 @@ const studentSelect = { id: true, username: true, display_name: true, status: tr
 const teacherSelect = { id: true, username: true, display_name: true, status: true } as const;
 const lessonSelect = { id: true, level_id: true, course_week_id: true, title: true, summary: true, content_json: true, duration_minutes: true } as const;
 const serial = { isolationLevel: Prisma.TransactionIsolationLevel.Serializable };
+// Salones donde la persona es docente: responsable (teacher_id) o docente adicional.
+export const taughtBy = (teacherId: string) => ({ OR: [{ teacher_id: teacherId }, { back_fk_classroom_teachers_classroom: { some: { teacher_id: teacherId } } }] });
 
 async function consent(tx: Prisma.TransactionClient, studentId: string) {
   const latest = await tx.guardian_consents.findFirst({
@@ -41,14 +43,14 @@ export class PrismaLearningRepository implements LearningRepository {
   listStudents(actor: Actor, page: PageRequest) {
     return this.db.users.findMany({
       where: { role: 'student', ...(actor.role === 'admin' ? {} : {
-        back_fk_enrollments_student: { some: { rel_fk_enrollments_classroom: { teacher_id: actor.id } } }
+        back_fk_enrollments_student: { some: { rel_fk_enrollments_classroom: taughtBy(actor.id) } }
       }) }, select: studentSelect, ...pagination(page), orderBy: { id: 'asc' }
     });
   }
   student(id: string) { return this.db.users.findFirst({ where: { id, role: 'student' }, select: studentSelect }); }
   async teacherHasStudent(teacherId: string, studentId: string) {
     return !!await this.db.classroom_enrollments.findFirst({ where: {
-      student_id: studentId, rel_fk_enrollments_classroom: { teacher_id: teacherId, status: 'active' }
+      student_id: studentId, rel_fk_enrollments_classroom: { ...taughtBy(teacherId), status: 'active' }
     }, select: { student_id: true } });
   }
   createStudent(input: NewStudentAccount) {
@@ -133,12 +135,41 @@ export class PrismaLearningRepository implements LearningRepository {
     return !!level && !!course;
   }
   listClassrooms(actor: Actor, page: PageRequest) {
-    const where = actor.role === 'admin' ? {} : actor.role === 'teacher' ? { teacher_id: actor.id } : {
+    const where = actor.role === 'admin' ? {} : actor.role === 'teacher' ? taughtBy(actor.id) : {
       back_fk_enrollments_classroom: { some: { student_id: actor.id } }
     };
     return this.db.classrooms.findMany({ where, ...pagination(page), orderBy: [{ created_at: 'desc' }, { id: 'asc' }] });
   }
   classroom(id: string) { return this.db.classrooms.findUnique({ where: { id } }); }
+  async teachesClassroom(classroomId: string, teacherId: string) {
+    return !!await this.db.classrooms.findFirst({ where: { id: classroomId, ...taughtBy(teacherId) }, select: { id: true } });
+  }
+  async classroomTeachers(classroomId: string) {
+    const room = await this.db.classrooms.findUnique({ where: { id: classroomId }, select: { teacher_id: true, back_fk_classroom_teachers_classroom: { select: { teacher_id: true }, orderBy: { added_at: 'asc' } } } });
+    if (!room) throw new DataMissing();
+    const ids = [room.teacher_id, ...room.back_fk_classroom_teachers_classroom.map(row => row.teacher_id)];
+    const users = await this.db.users.findMany({ where: { id: { in: ids } }, select: teacherSelect });
+    return ids.flatMap(id => users.filter(user => user.id === id)).map(user => ({ ...user, responsible: user.id === room.teacher_id }));
+  }
+  eligibleTeachers(classroomId: string, page: PageRequest) {
+    return this.db.users.findMany({ where: {
+      role: 'teacher', status: 'active',
+      NOT: [{ back_fk_classrooms_teacher: { some: { id: classroomId } } }, { back_fk_classroom_teachers_teacher: { some: { classroom_id: classroomId } } }]
+    }, select: teacherSelect, ...pagination(page), orderBy: [{ display_name: 'asc' }, { id: 'asc' }] });
+  }
+  async addClassroomTeacher(classroomId: string, teacherId: string, addedBy: string) {
+    await this.write(() => this.db.$transaction(async tx => {
+      const room = await tx.classrooms.findFirst({ where: { id: classroomId, status: 'active' }, select: { teacher_id: true } });
+      if (!room || room.teacher_id === teacherId || !await tx.users.findFirst({ where: { id: teacherId, role: 'teacher', status: 'active' } })) throw new DataConflict();
+      await tx.classroom_teachers.upsert({
+        where: { classroom_id_teacher_id: { classroom_id: classroomId, teacher_id: teacherId } },
+        create: { classroom_id: classroomId, teacher_id: teacherId, added_by: addedBy }, update: {}
+      });
+    }, serial));
+  }
+  async removeClassroomTeacher(classroomId: string, teacherId: string) {
+    await this.db.classroom_teachers.deleteMany({ where: { classroom_id: classroomId, teacher_id: teacherId } });
+  }
   async enrolled(classroomId: string, studentId: string) {
     return !!await this.db.classroom_enrollments.findUnique({ where: { classroom_id_student_id: { classroom_id: classroomId, student_id: studentId } } });
   }
@@ -194,7 +225,7 @@ export class PrismaLearningRepository implements LearningRepository {
   }
   listProjects(actor: Actor, page: PageRequest) {
     const where = actor.role === 'admin' ? {} : actor.role === 'teacher' ? {
-      OR: [{ owner_id: actor.id }, { rel_fk_projects_classroom: { teacher_id: actor.id } }]
+      OR: [{ owner_id: actor.id }, { rel_fk_projects_classroom: taughtBy(actor.id) }]
     } : { owner_id: actor.id };
     return this.db.projects.findMany({ where, ...pagination(page), orderBy: [{ updated_at: 'desc' }, { id: 'asc' }] });
   }
@@ -240,7 +271,7 @@ export class PrismaLearningRepository implements LearningRepository {
   async listProgress(access: ProgressAccess, page: PageRequest) {
     const bounds = pagination(page);
     const rooms = access.teacher_id ? await this.db.classrooms.findMany({
-      where: { teacher_id: access.teacher_id, status: 'active',
+      where: { ...taughtBy(access.teacher_id), status: 'active',
         back_fk_enrollments_classroom: { some: { student_id: access.student_id } } },
       select: { level_id: true, course_id: true }
     }).then(list => list.filter((room): room is { level_id: number; course_id: string } => !!room.course_id)) : null;

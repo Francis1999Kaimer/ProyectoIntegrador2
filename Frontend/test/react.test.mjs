@@ -15,11 +15,12 @@ dom.window.confirm=()=>true
 dom.window.HTMLCanvasElement.prototype.getContext=()=>null
 globalThis.createImageBitmap=async()=>({close(){},width:10,height:10})
 const MIN_PER_CATEGORY=10
+const teachesRoom=(r,userId)=>r.teacher_id===userId||(r.co??[]).includes(userId)
 const stateOf=a=>Date.now()<new Date(a.starts_at).getTime()?'upcoming':Date.now()>new Date(a.ends_at).getTime()?'closed':'open'
 const roomOf=a=>current.rooms.find(r=>r.id===a.classroom_id)
 const taskView=(a,hide=false)=>({...a,description:hide?null:a.description,instructions:hide?null:a.instructions,state:stateOf(a)})
 function detailOf(a,user){
-  const room=roomOf(a),manage=user.role==='admin'||room.teacher_id===user.id,base={...taskView(a,!manage&&stateOf(a)==='upcoming'),classroom:{id:room.id,name:room.name,status:room.status},manage}
+  const room=roomOf(a),manage=user.role==='admin'||teachesRoom(room,user.id),base={...taskView(a,!manage&&stateOf(a)==='upcoming'),classroom:{id:room.id,name:room.name,status:room.status},manage}
   if(manage)return {...base,submissions:current.users.filter(u=>u.role==='student'&&current.enrolled.has(room.id+':'+u.id)).map(u=>{const sub=current.submissions.find(x=>x.assignment_id===a.id&&x.student_id===u.id);const project=sub&&current.projects.find(x=>x.id===sub.project_id);return {student:{id:u.id,username:u.username,display_name:u.display_name},enrolled:true,submission:sub?{...sub,project:project?{id:project.id,title:project.title,project_type:project.project_type}:null,test_accuracy:null}:null}})}
   return {...base,submission:current.submissions.find(x=>x.assignment_id===a.id&&x.student_id===user.id)??null,projects:current.projects.filter(x=>x.owner_id===user.id&&x.classroom_id===room.id).map(({id,title,project_type,status})=>({id,title,project_type,status}))}
 }
@@ -98,12 +99,12 @@ globalThis.fetch=async(url,options={})=>{
   if(path==='/assignments/pending'){
     const now=Date.now()
     if(user.role==='student')return json(200,{tasks:current.assignments.filter(a=>stateOf(a)==='open'&&current.enrolled.has(a.classroom_id+':'+user.id)&&!current.submissions.some(s=>s.assignment_id===a.id&&s.student_id===user.id)).map(a=>({...taskView(a),classroom_name:roomOf(a).name})),to_grade:[]})
-    const rows=current.assignments.filter(a=>user.role==='admin'||roomOf(a).teacher_id===user.id).map(a=>({...taskView(a),classroom_name:roomOf(a).name,ungraded:current.submissions.filter(s=>s.assignment_id===a.id&&s.grade===null).length})).filter(a=>a.ungraded)
+    const rows=current.assignments.filter(a=>user.role==='admin'||teachesRoom(roomOf(a),user.id)).map(a=>({...taskView(a),classroom_name:roomOf(a).name,ungraded:current.submissions.filter(s=>s.assignment_id===a.id&&s.grade===null).length})).filter(a=>a.ungraded)
     return json(200,{tasks:[],to_grade:rows})
   }
   if(path.startsWith('/assignments/')){
     const [,,taskId,resource,studentId]=path.split('/'),a=current.assignments.find(x=>x.id===taskId);if(!a)return json(404,{})
-    const room=roomOf(a),manage=user.role==='admin'||room.teacher_id===user.id
+    const room=roomOf(a),manage=user.role==='admin'||teachesRoom(room,user.id)
     if(!manage&&!current.enrolled.has(room.id+':'+user.id))return json(404,{})
     if(resource==='submission'&&method==='PUT'){
       if(user.role!=='student')return json(403,{});if(stateOf(a)!=='open')return json(409,{})
@@ -124,7 +125,7 @@ globalThis.fetch=async(url,options={})=>{
   }
   if(path.startsWith('/users/')&&path.endsWith('/password')){
     const target=current.users.find(u=>u.id===path.split('/')[2]);if(user.role==='student')return json(403,{})
-    const allowed=target&&(user.role==='admin'||(target.role==='student'&&current.rooms.some(r=>r.teacher_id===user.id&&current.enrolled.has(r.id+':'+target.id))))
+    const allowed=target&&(user.role==='admin'||(target.role==='student'&&current.rooms.some(r=>teachesRoom(r,user.id)&&current.enrolled.has(r.id+':'+target.id))))
     if(!allowed)return json(404,{});if(body.password.length<12)return json(400,{})
     target.password=body.password;target.must_change_password=body.require_password_change!==false
     for(const [key,value]of current.tokens)if(value.id===target.id)current.tokens.delete(key)
@@ -132,14 +133,21 @@ globalThis.fetch=async(url,options={})=>{
   }
   if(path==='/classrooms'){
     if(method==='POST'){const r={id:uid(++current.sequence+200),...body,teacher_id:body.teacher_id??user.id,status:'active'};current.rooms.push(r);return json(201,r)}
-    return json(200,current.rooms.filter(r=>user.role==='admin'||r.teacher_id===user.id||current.enrolled.has(r.id+':'+user.id)))
+    return json(200,current.rooms.filter(r=>user.role==='admin'||teachesRoom(r,user.id)||current.enrolled.has(r.id+':'+user.id)))
   }
   if(path.startsWith('/classrooms/')){
     const [,,id,resource,studentId]=path.split('/'),room=current.rooms.find(r=>r.id===id)
     if(!room)return json(404,{})
+    if(resource==='teachers'){
+      const canAssign=user.role==='admin'||room.teacher_id===user.id;room.co??=[]
+      if(method==='POST'){if(!canAssign)return json(403,{});if(body.teacher_id===room.teacher_id)return json(400,{});if(!room.co.includes(body.teacher_id))room.co.push(body.teacher_id)}
+      if(method==='DELETE'){if(studentId===room.teacher_id)return json(400,{});if(!canAssign&&studentId!==user.id)return json(403,{});room.co=room.co.filter(x=>x!==studentId);return json(204)}
+      return json(200,[room.teacher_id,...room.co].map(tid=>current.users.find(u=>u.id===tid)).filter(Boolean).map(({password,...u})=>({...u,responsible:u.id===room.teacher_id})))
+    }
+    if(resource==='eligible-teachers')return json(200,current.users.filter(u=>u.role==='teacher'&&u.status==='active'&&u.id!==room.teacher_id&&!(room.co??[]).includes(u.id)).map(({password,...u})=>u))
     if(resource==='lessons')return json(200,[current.lesson])
     if(resource==='assignments'){
-      const manage=user.role==='admin'||room.teacher_id===user.id
+      const manage=user.role==='admin'||teachesRoom(room,user.id)
       if(method==='POST'){if(!manage)return json(404,{});const a={id:uid(++current.sequence+800),classroom_id:id,...body,created_at:new Date().toISOString(),updated_at:new Date().toISOString()};current.assignments.push(a);return json(201,taskView(a))}
       const own=current.assignments.filter(a=>a.classroom_id===id)
       if(manage)return json(200,own.map(a=>({...taskView(a),counts:{students:current.users.filter(u=>current.enrolled.has(id+':'+u.id)).length,submitted:current.submissions.filter(s=>s.assignment_id===a.id).length,graded:current.submissions.filter(s=>s.assignment_id===a.id&&s.grade!==null).length}})))
@@ -160,7 +168,7 @@ globalThis.fetch=async(url,options={})=>{
   }
   if(path==='/students'){
     if(method==='POST'){
-      if(body.guardian_authorized!==true)return json(400,{});if(user.role==='teacher'&&!current.rooms.some(r=>r.id===body.classroom_id&&r.teacher_id===user.id))return json(user.role==='teacher'&&!body.classroom_id?400:404,{})
+      if(body.guardian_authorized!==true)return json(400,{});if(user.role==='teacher'&&!current.rooms.some(r=>r.id===body.classroom_id&&teachesRoom(r,user.id)))return json(user.role==='teacher'&&!body.classroom_id?400:404,{})
       const s={id:uid(++current.sequence+300),username:body.username,display_name:body.display_name,password:body.password,role:'student',status:'active',must_change_password:body.require_password_change!==false,guardian:body.guardian_name??'No indicado'}
       current.users.push(s);current.consents.add(s.id);if(body.classroom_id)current.enrolled.add(body.classroom_id+':'+s.id);const {password,...profile}=s;return json(201,profile)
     }
@@ -273,7 +281,7 @@ test('admin selects an active teacher instead of entering a classroom UUID',()=>
 }))
 test('admin sees the responsible teacher in classroom details',()=>fixture(async()=>{
   await mount();await login('admin');await click('Salones');await click('Salon pilotoAño 2026Activo');await settle()
-  assert.match(text(),/Docente responsable: Test teacher · teacher/)
+  assert.match(text(),/Docentes: Test teacher \(responsable\)/)
 }))
 test('old character workflow routes open the project in the new flow',()=>fixture(async()=>{
   await mount('/modelo?project='+uid(40));await login();await settle()
@@ -315,7 +323,7 @@ test('teacher creates a student inside the classroom and resets the password of 
   await act(async()=>{checks.find(c=>c.closest('label').textContent.includes('autorización')).click();checks.find(c=>c.closest('label').textContent.includes('cambie la contraseña')).click();await Promise.resolve()})
   await submit('Usuario');await settle()
   const nina=current.users.find(u=>u.username==='nina');assert.ok(nina);assert.ok(current.enrolled.has(uid(50)+':'+nina.id));assert.equal(nina.must_change_password,false)
-  await waitFor(()=>/Niña DOM/.test(document.querySelector('.roster-list')?.textContent??''))
+  await waitFor(()=>[...document.querySelectorAll('.roster-list')].some(l=>/Niña DOM/.test(l.textContent)))
   const row=[...document.querySelectorAll('.roster-list li')].find(l=>l.textContent.includes('Test student'))
   await act(async()=>{[...row.querySelectorAll('button')].find(b=>b.textContent==='Restablecer contraseña').click();await Promise.resolve()})
   await fill('Nueva contraseña','clave-nueva-alumno-1');await submit('Nueva contraseña');await settle()
@@ -493,4 +501,21 @@ test('teacher creates a task; the student submits a project from the shortcut fl
   await waitFor(()=>/Nota: 17\.5/.test(text()));assert.equal(current.submissions[0].grade,17.5)
   await click('Salir');await login();await unmount();await mount('/salones/'+uid(50)+'/tareas/'+task.id);await settle()
   await waitFor(()=>/Nota: 17\.5 \/ 20/.test(text()));assert.match(text(),/Muy bien/);assert.equal(button('Actualizar entrega'),undefined)
+}))
+
+test('the responsible teacher adds another teacher; the additional teacher manages tasks and can leave the classroom',()=>fixture(async()=>{
+  current.users.push({id:uid(4),username:'teacher2',display_name:'Otra docente',role:'teacher',status:'active',must_change_password:false,password:PASSWORD})
+  await mount();await login('teacher');await click('Salones');await click('Salon pilotoAño 2026Activo');await settle()
+  await waitFor(()=>/Docentes del salón/.test(text())&&[...document.querySelectorAll('option')].some(o=>o.value===uid(4)))
+  assert.match(text(),/Docentes: Test teacher \(responsable\)/)
+  await fill('Docente',uid(4));await click('Agregar docente')
+  await waitFor(()=>/Docente agregado al salón/.test(text()))
+  assert.deepEqual(current.rooms[0].co,[uid(4)]);assert.match(text(),/Docentes: Test teacher \(responsable\), Otra docente/)
+  await click('Salir');await login('teacher2');await click('Salones');await settle()
+  await click('Salon pilotoAño 2026Activo');await waitFor(()=>/Docentes del salón/.test(text())&&!!document.querySelector('.task-create'))
+  assert.equal(button('Agregar docente'),undefined,'un docente adicional no agrega docentes');assert.equal(button('Archivar salón'),undefined)
+  assert.ok([...document.querySelectorAll('summary')].some(x=>x.textContent.includes('Nueva tarea')),'gestiona las tareas del salón')
+  assert.match(text(),/Test student/,'ve a los alumnos matriculados')
+  await click('Salir del salón');await waitFor(()=>window.location.pathname==='/salones')
+  assert.deepEqual(current.rooms[0].co,[])
 }))

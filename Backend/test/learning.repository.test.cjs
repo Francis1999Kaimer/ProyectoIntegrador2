@@ -13,13 +13,14 @@ test('Prisma learning adapter scopes roster, projects, classroom membership and 
   await repo.listStudents({id:'teacher',role:'teacher'},{limit:3,offset:2});
   const students=calls[0][1];
   assert.equal(students.where.role,'student');
-  assert.equal(students.where.back_fk_enrollments_student.some.rel_fk_enrollments_classroom.teacher_id,'teacher');
+  // Docente del salón: responsable o docente adicional.
+  assert.deepEqual(students.where.back_fk_enrollments_student.some.rel_fk_enrollments_classroom,{OR:[{teacher_id:'teacher'},{back_fk_classroom_teachers_classroom:{some:{teacher_id:'teacher'}}}]});
   assert.deepEqual(Object.keys(students.select).sort(),['display_name','id','status','username']);
   assert.equal(students.take,3);assert.equal(students.skip,2);
   await repo.listProjects({id:'student',role:'student'},{});
   assert.deepEqual(calls[1][1].where,{owner_id:'student'});
   await repo.listProjects({id:'teacher',role:'teacher'},{});
-  assert.deepEqual(calls[2][1].where.OR,[{owner_id:'teacher'},{rel_fk_projects_classroom:{teacher_id:'teacher'}}]);
+  assert.deepEqual(calls[2][1].where.OR,[{owner_id:'teacher'},{rel_fk_projects_classroom:{OR:[{teacher_id:'teacher'},{back_fk_classroom_teachers_classroom:{some:{teacher_id:'teacher'}}}]}}]);
   await repo.listClassrooms({id:'student',role:'student'},{});
   assert.deepEqual(calls[3][1].where,{back_fk_enrollments_classroom:{some:{student_id:'student'}}});
 });
@@ -30,7 +31,7 @@ test('teacher progress adapter correlates BOTH course and level to own active en
     calls.push(q);return[{level_id:1,course_id:'course-A'},{level_id:2,course_id:'course-B'}];
   }},lesson_progress:{findMany:async q=>{calls.push(q);return[];}}});
   await repo.listProgress({student_id:'student',teacher_id:'teacher'},{limit:5});
-  assert.equal(calls[0].where.teacher_id,'teacher');assert.equal(calls[0].where.status,'active');
+  assert.deepEqual(calls[0].where.OR,{OR:[{teacher_id:'teacher'},{back_fk_classroom_teachers_classroom:{some:{teacher_id:'teacher'}}}]}.OR);assert.equal(calls[0].where.status,'active');
   assert.equal(calls[0].where.back_fk_enrollments_classroom.some.student_id,'student');
   assert.deepEqual(calls[1].where,{student_id:'student',rel_fk_lesson_progress_lesson:{OR:[
     {level_id:1,rel_fk_lessons_week:{course_id:'course-A'}},{level_id:2,rel_fk_lessons_week:{course_id:'course-B'}}

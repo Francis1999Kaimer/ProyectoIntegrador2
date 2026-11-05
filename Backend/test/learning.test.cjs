@@ -32,13 +32,15 @@ async function fixture() {
   const projects = [{ id: randomUUID(), owner_id: a.id, classroom_id: room.id, title: 'A project', status: 'draft', project_type: 'blocks' }];
   const workspaces = new Map(), snapshots = [], progress = [], simulations = [];
   const lesson = { id: lessonId, level_id: 1, title: 'Test lesson', content_json: JSON.stringify({ sections: [1,2,3,4,5] }) };
-  const canRoom = (actor, r) => actor.role === 'admin' || (actor.role === 'teacher' ? r.teacher_id === actor.id : enrollments.has(r.id + ':' + actor.id));
+  const coTeachers = new Set();
+  const teaches = (teacher, r) => r.teacher_id === teacher || coTeachers.has(r.id + ':' + teacher);
+  const canRoom = (actor, r) => actor.role === 'admin' || (actor.role === 'teacher' ? teaches(actor.id, r) : enrollments.has(r.id + ':' + actor.id));
   const repo = {
     catalog: async () => ({ levels: [{ id: 1 }], courses: [{ id: course }] }),
-    listStudents: async actor => users.filter(u => u.role === 'student' && (actor.role === 'admin' || rooms.some(r => r.teacher_id === actor.id && enrollments.has(r.id + ':' + u.id)))).map(publicStudent),
+    listStudents: async actor => users.filter(u => u.role === 'student' && (actor.role === 'admin' || rooms.some(r => teaches(actor.id, r) && enrollments.has(r.id + ':' + u.id)))).map(publicStudent),
     listTeachers: async () => users.filter(u => u.role === 'teacher').map(publicStudent),
     student: async id => users.find(u => u.id === id && u.role === 'student') ?? null,
-    teacherHasStudent: async (teacher, student) => rooms.some(r => r.teacher_id === teacher && r.status === 'active' && enrollments.has(r.id + ':' + student)),
+    teacherHasStudent: async (teacher, student) => rooms.some(r => teaches(teacher, r) && r.status === 'active' && enrollments.has(r.id + ':' + student)),
     createStudent: async input => {
       if (users.some(u => u.username === input.username)) throw new DataConflict();
       if (input.classroom_id && rooms.find(r => r.id === input.classroom_id)?.status !== 'active') throw new DataConflict();
@@ -74,6 +76,11 @@ async function fixture() {
     listClassrooms: async actor => rooms.filter(r => canRoom(actor, r)),
     classroom: async id => rooms.find(r => r.id === id) ?? null,
     enrolled: async (id, student) => enrollments.has(id + ':' + student),
+    teachesClassroom: async (id, teacher) => coTeachers.has(id + ':' + teacher) || rooms.some(r => r.id === id && r.teacher_id === teacher),
+    classroomTeachers: async id => { const r = rooms.find(x => x.id === id); return users.filter(u => u.id === r.teacher_id || coTeachers.has(id + ':' + u.id)).map(u => ({ ...publicStudent(u), responsible: u.id === r.teacher_id })); },
+    eligibleTeachers: async id => users.filter(u => u.role === 'teacher' && u.status === 'active' && !teaches(u.id, rooms.find(r => r.id === id))).map(publicStudent),
+    addClassroomTeacher: async (id, teacher) => { const r = rooms.find(x => x.id === id); if (r?.status !== 'active' || r.teacher_id === teacher || !users.some(u => u.id === teacher && u.role === 'teacher' && u.status === 'active')) throw new DataConflict(); coTeachers.add(id + ':' + teacher); },
+    removeClassroomTeacher: async (id, teacher) => { coTeachers.delete(id + ':' + teacher); },
     createClassroom: async input => { const r = { id: randomUUID(), ...input, status: 'active' }; rooms.push(r); return r; },
     updateClassroom: async (id, input) => Object.assign(rooms.find(r => r.id === id), input),
     classroomStudents: async id => users.filter(u => enrollments.has(id + ':' + u.id)).map(publicStudent),
@@ -85,7 +92,7 @@ async function fixture() {
     unenroll: async (id, student) => { enrollments.delete(id + ':' + student); },
     lessons: async id => { if (rooms.find(r => r.id === id)?.status !== 'active') throw new DataMissing(); return [lesson]; },
     lessonForStudent: async (id, student) => id === lessonId && rooms.some(r => r.course_id === course && r.level_id === 1 && r.status === 'active' && enrollments.has(r.id + ':' + student)) ? lesson : null,
-    listProjects: async actor => projects.filter(p => p.owner_id === actor.id || actor.role === 'admin' || (actor.role === 'teacher' && rooms.some(r => r.id === p.classroom_id && r.teacher_id === actor.id))),
+    listProjects: async actor => projects.filter(p => p.owner_id === actor.id || actor.role === 'admin' || (actor.role === 'teacher' && rooms.some(r => r.id === p.classroom_id && teaches(actor.id, r)))),
     project: async id => projects.find(p => p.id === id) ?? null,
     createProject: async (owner_id, input) => { const p = { id: randomUUID(), ...input, owner_id, status: 'draft' }; projects.push(p); return p; },
     updateProject: async (id, input) => Object.assign(projects.find(p => p.id === id), input),
@@ -141,7 +148,7 @@ async function fixture() {
     }, body: body === undefined ? undefined : JSON.stringify(body) });
     return { status: response.status, body: response.status === 204 ? null : await response.json() };
   }
-  return { app, base, tokens, consents, consentLog, users, a, b, t, other, admin, course, room, rooms, otherRoom, projects, repo, call, lessonId, progress, snapshots, workspaces, simulations, enrollments };
+  return { app, base, tokens, coTeachers, consents, consentLog, users, a, b, t, other, admin, course, room, rooms, otherRoom, projects, repo, call, lessonId, progress, snapshots, workspaces, simulations, enrollments };
 }
 const graph = { schemaVersion: 1, nodes: [{ id: 'n1', position: { x: 0, y: 0 }, data: { label: 'Input' } }], edges: [] };
 const simulationGraph = { schemaVersion: 1, nodes: [
@@ -415,4 +422,37 @@ test('draft survives without dataset; the training flow API is owner-only and en
   assert.equal((await f.call(f.a,'PUT',path+'/training/config',{epochs:40,learning_rate:0.001,batch_size:16,model_size:'medium'})).status,400);
   assert.equal((await f.call(f.a,'PUT',path+'/training/config',{epochs:12,learning_rate:0.001,batch_size:16,model_size:'medium'})).body.step,4);
   assert.equal((await f.call(f.a,'GET',path+'/training/model-file')).status,404);
+}));
+
+test('a classroom can have several teachers: the responsible teacher or an administrator adds and removes them', () => withFixture(async f => {
+  const path = `/classrooms/${f.room.id}/teachers`;
+  // Al inicio, solo el responsable.
+  assert.deepEqual((await f.call(f.t,'GET',path)).body.map(t => [t.id, t.responsible]), [[f.t.id, true]]);
+  assert.equal((await f.call(f.other,'GET',`/classrooms/${f.room.id}`)).status,404,'aún no es docente del salón');
+  assert.deepEqual((await f.call(f.t,'GET',`/classrooms/${f.room.id}/eligible-teachers`)).body.map(t => t.id), [f.other.id]);
+  assert.equal((await f.call(f.a,'POST',path,{teacher_id:f.other.id})).status,403,'un alumno no agrega docentes');
+  assert.equal((await f.call(f.t,'POST',path,{teacher_id:f.t.id})).status,400,'ya es el responsable');
+  assert.equal((await f.call(f.t,'POST',path,{teacher_id:f.a.id})).status,409,'solo docentes activos');
+  const added = await f.call(f.t,'POST',path,{teacher_id:f.other.id});
+  assert.equal(added.status,200); assert.deepEqual(added.body.map(t => [t.id, t.responsible]), [[f.t.id, true],[f.other.id, false]]);
+  // El docente adicional gestiona el salón: lo ve, ve a sus alumnos y sus proyectos.
+  assert.equal((await f.call(f.other,'GET',`/classrooms/${f.room.id}`)).status,200);
+  assert.ok((await f.call(f.other,'GET','/classrooms')).body.some(r => r.id === f.room.id));
+  assert.deepEqual((await f.call(f.other,'GET',`/classrooms/${f.room.id}/students`)).body.map(s => s.id), [f.a.id]);
+  assert.ok((await f.call(f.other,'GET','/students')).body.some(s => s.id === f.a.id));
+  assert.equal((await f.call(f.other,'GET',`/projects/${f.projects[0].id}`)).status,200,'ve los proyectos del salón');
+  assert.equal((await f.call(f.other,'POST',`/users/${f.a.id}/password`,{password:'clave-del-co-docente-1'})).status,204,'restablece a sus alumnos');
+  // Pero no agrega ni quita a otros docentes, no archiva el salón y no puede quitar al responsable.
+  assert.equal((await f.call(f.other,'PATCH',`/classrooms/${f.room.id}`,{status:'archived'})).status,403);
+  assert.equal((await f.call(f.other,'GET',`/classrooms/${f.room.id}/eligible-teachers`)).status,403);
+  assert.equal((await f.call(f.other,'DELETE',`${path}/${f.t.id}`)).status,400);
+  assert.equal((await f.call(f.admin,'DELETE',`${path}/${f.t.id}`)).status,400,'el responsable no se quita');
+  // Un docente adicional puede salir del salón por su cuenta.
+  assert.equal((await f.call(f.other,'DELETE',`${path}/${f.other.id}`)).status,204);
+  assert.equal((await f.call(f.other,'GET',`/classrooms/${f.room.id}`)).status,404);
+  // El administrador también agrega y quita docentes; con el salón archivado no se agregan.
+  assert.equal((await f.call(f.admin,'POST',path,{teacher_id:f.other.id})).status,200);
+  assert.equal((await f.call(f.admin,'DELETE',`${path}/${f.other.id}`)).status,204);
+  assert.equal((await f.call(f.t,'PATCH',`/classrooms/${f.room.id}`,{status:'archived'})).status,200);
+  assert.equal((await f.call(f.t,'POST',path,{teacher_id:f.other.id})).status,400);
 }));

@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { PasswordService } from '../auth/password.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { PageRequest, Project, SimulationRun, Workspace } from '../repositories/contracts';
+import { Classroom, PageRequest, Project, SimulationRun, Workspace } from '../repositories/contracts';
 import { Actor, LEARNING_REPOSITORY, LearningRepository } from '../repositories/learning.contracts';
 import { ClassroomDto, ClassroomPatchDto, ConsentDto, PasswordResetDto, ProjectDto, ProjectPatchDto, ProjectDraftDto, StudentDto, TeacherDto, WorkspaceDto } from './learning.dto';
 import { simulatePedagogically } from './pedagogical-simulation';
@@ -43,11 +43,46 @@ export class LearningService {
   currentConsent(id: string) { return this.repo.currentConsent(id); }
   revokeConsent(id: string) { return this.repo.revokeConsent(id); }
   classrooms(actor: Actor, page: PageRequest) { return this.repo.listClassrooms(actor, page); }
+  /** Docente del salón: responsable o docente adicional. */
+  private async teaches(actor: Actor, room: Classroom) {
+    return actor.role === 'teacher' && (room.teacher_id === actor.id || await this.repo.teachesClassroom(room.id, actor.id));
+  }
+  /** Gestiona el salón (alumnos, tareas, notas): administrador o cualquier docente del salón. */
+  async managesClassroom(actor: Actor, room: Classroom) { return actor.role === 'admin' || await this.teaches(actor, room); }
   async classroom(actor: Actor, id: string, manage = false) {
     const row = await this.repo.classroom(id);
-    if (!row || (actor.role !== 'admin' && !(actor.role === 'teacher' && row.teacher_id === actor.id) &&
-      (manage || actor.role !== 'student' || !await this.repo.enrolled(id, actor.id)))) throw new NotFoundException('Salón no encontrado.');
-    return row;
+    if (!row) throw new NotFoundException('Salón no encontrado.');
+    if (await this.managesClassroom(actor, row)) return row;
+    if (!manage && actor.role === 'student' && await this.repo.enrolled(id, actor.id)) return row;
+    throw new NotFoundException('Salón no encontrado.');
+  }
+  // ---------- Docentes del salón ----------
+  async classroomTeachers(actor: Actor, id: string) {
+    await this.classroom(actor, id);
+    return this.repo.classroomTeachers(id);
+  }
+  /** Solo el docente responsable y el administrador agregan o quitan docentes. */
+  private assigner(actor: Actor, room: Classroom) {
+    if (actor.role !== 'admin' && room.teacher_id !== actor.id) throw new ForbiddenException('Solo el docente responsable o un administrador gestionan los docentes del salón.');
+  }
+  async eligibleTeachers(actor: Actor, id: string, page: PageRequest) {
+    this.assigner(actor, await this.classroom(actor, id, true));
+    return this.repo.eligibleTeachers(id, page);
+  }
+  async addTeacher(actor: Actor, id: string, teacherId: string) {
+    const room = await this.classroom(actor, id, true);
+    this.assigner(actor, room);
+    if (room.status !== 'active') throw new BadRequestException('El salón está archivado.');
+    if (teacherId === room.teacher_id) throw new BadRequestException('Ese docente ya es el responsable del salón.');
+    await this.repo.addClassroomTeacher(id, teacherId, actor.id);
+    return this.repo.classroomTeachers(id);
+  }
+  /** El responsable y el administrador quitan docentes; un docente adicional puede salir por su cuenta. */
+  async removeTeacher(actor: Actor, id: string, teacherId: string) {
+    const room = await this.classroom(actor, id, true);
+    if (teacherId === room.teacher_id) throw new BadRequestException('El docente responsable no se puede quitar del salón.');
+    if (teacherId !== actor.id) this.assigner(actor, room);
+    await this.repo.removeClassroomTeacher(id, teacherId);
   }
   async createClassroom(actor: Actor, input: ClassroomDto) {
     const teacherId = input.teacher_id ?? actor.id;
@@ -62,8 +97,9 @@ export class LearningService {
       school_name: input.school_name, academic_year: input.academic_year, course_start_date: date
     });
   }
+  // Nombre, colegio y archivar/reabrir: solo el docente responsable y el administrador.
   async updateClassroom(actor: Actor, id: string, input: ClassroomPatchDto) {
-    await this.classroom(actor, id, true);
+    this.assigner(actor, await this.classroom(actor, id, true));
     if (!Object.values(input).some(value => value !== undefined)) throw new BadRequestException('Indica un campo para actualizar.');
     return this.repo.updateClassroom(id, input);
   }
@@ -98,7 +134,7 @@ export class LearningService {
     if (!write && actor.role === 'admin') return row;
     if (!write && actor.role === 'teacher' && row.classroom_id) {
       const classroom = await this.repo.classroom(row.classroom_id);
-      if (classroom?.teacher_id === actor.id) return row;
+      if (classroom && await this.teaches(actor, classroom)) return row;
     }
     throw new NotFoundException('Proyecto no encontrado.');
   }

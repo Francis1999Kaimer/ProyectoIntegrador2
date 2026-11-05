@@ -47,6 +47,7 @@ export class ClassroomPatchDto {
   @ValidateIf(present) @IsIn(['active', 'archived']) status?: string;
 }
 export class EnrollmentDto { @IsUUID('4') student_id!: string; }
+export class ClassroomTeacherDto { @IsUUID('4') teacher_id!: string; }
 export class ProjectDto {
   @Transform(trim) @IsString() @Length(1, 180) title!: string;
   @Transform(trim) @IsString() @IsIn(['character_recognition']) project_type!: string;

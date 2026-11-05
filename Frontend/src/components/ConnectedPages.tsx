@@ -1,14 +1,15 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { ArrowRight, BrainCircuit, FolderOpen, Plus } from 'lucide-react'
 import { api } from '../api/http'
 import { useResource } from '../api/useResource'
-import { accountStatusLabels, statusLabels, typeLabel, type Catalog, type Classroom, type Project, type Student, type Teacher } from '../api/types'
+import { accountStatusLabels, statusLabels, typeLabel, type Catalog, type Classroom, type ClassroomTeacher, type Project, type Student, type Teacher } from '../api/types'
 import { useAuth } from '../auth/AuthProvider'
 import { useProjectStore } from '../store/project'
 import { ApiMessage, Page } from './AppShell'
 import { ClassroomAssignments, PendingPanel } from './Assignments'
 import { PasswordReset, StudentForm } from './AccountForms'
+import { ClassroomTeachers } from './ClassroomTeachers'
 
 function Paging({offset,count,setOffset}:{offset:number;count:number;setOffset:(value:number)=>void}) {
   return <div className="actions between api-pagination"><button className="secondary" disabled={!offset} onClick={()=>setOffset(Math.max(0,offset-25))}>Anterior</button><span>Página {offset/25+1}</span><button className="secondary" disabled={count<25} onClick={()=>setOffset(offset+25)}>Siguiente</button></div>
@@ -70,21 +71,28 @@ export function ClassroomDetail() {
   const room=useResource<Classroom>(id?'/classrooms/'+id:null), [offset,setOffset]=useState(0)
   const roster=useResource<Student[]>(manage&&id?'/classrooms/'+id+'/students?limit=25&offset='+offset:null)
   const eligible=useResource<Student[]>(manage&&id?'/classrooms/'+id+'/eligible-students?limit=100&offset=0':null)
-  const teachers=useResource<Teacher[]>(user?.role==='admin'?'/teachers?limit=100&offset=0':null)
+  // Todos los docentes del salón (responsable y adicionales).
+  const staff=useResource<ClassroomTeacher[]>(id?'/classrooms/'+id+'/teachers':null)
+  // Se conserva la última lista mientras recarga: la sección no se desmonta ni parpadea.
+  const [team,setTeam]=useState<ClassroomTeacher[]|null>(null)
+  useEffect(()=>{if(staff.data)setTeam(staff.data)},[staff.data])
   const [studentId,setStudentId]=useState(''),[resetting,setResetting]=useState<Student|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('')
   async function mutation(method:string,path:string,body?:unknown):Promise<boolean> {if(busy)return false;setBusy(true);setError('');setNotice('');try{await api.request(path,{method,body});roster.reload();eligible.reload();room.reload();setNotice('Cambio guardado.');return true}catch(e){setError((e as Error).message);return false}finally{setBusy(false)}}
   async function enroll(e:FormEvent) { e.preventDefault(); if(await mutation('POST','/classrooms/'+id+'/students',{student_id:studentId})) setStudentId('') }
-  const classroomTeacher=teachers.data?.find(t=>t.id===room.data?.teacher_id)
+  const isTeacher=!!team?.some(t=>t.id===user?.id), canManage=user?.role==='admin'||isTeacher
+  const canAssign=user?.role==='admin'||room.data?.teacher_id===user?.id
   return <Page><Link className="back-link" to="/salones">← Volver a salones</Link><ApiMessage {...room} retry={room.reload}/>{room.data&&<>
-    <section className="panel resource-detail"><h1>{room.data.name}</h1><p>Año {room.data.academic_year} · {room.data.status==='active'?'Activo':'Archivado'}</p>{user?.role==='admin'&&<p>Docente responsable: {teachers.loading?'Cargando…':classroomTeacher?<><strong>{classroomTeacher.display_name}</strong> · {classroomTeacher.username}</>:'No disponible'}</p>}
-    {manage&&<button className="secondary" disabled={busy} onClick={()=>void mutation('PATCH','/classrooms/'+id,{status:room.data!.status==='active'?'archived':'active'})}>{room.data.status==='active'?'Archivar salón':'Reabrir salón'}</button>}
+    <section className="panel resource-detail"><h1>{room.data.name}</h1><p>Año {room.data.academic_year} · {room.data.status==='active'?'Activo':'Archivado'}</p>
+    <p>Docentes: {team?team.map((t,i)=><span key={t.id}>{i?', ':''}<strong>{t.display_name}</strong>{t.responsible?' (responsable)':''}</span>):'Cargando…'}</p>
+    {canAssign&&<button className="secondary" disabled={busy} onClick={()=>void mutation('PATCH','/classrooms/'+id,{status:room.data!.status==='active'?'archived':'active'})}>{room.data.status==='active'?'Archivar salón':'Reabrir salón'}</button>}
     <ApiMessage error={error}/>{notice&&<p role="status">{notice}</p>}</section>
+    {canManage&&team&&user&&<ClassroomTeachers room={room.data} staff={team} reload={staff.reload} userId={user.id} canAssign={canAssign}/>}
     {manage&&<section className="panel resource-detail"><h2>Alumnos matriculados</h2>
       {room.data.status==='active'&&<details className="task-create"><summary>Crear alumno en este salón</summary><StudentForm classroomId={room.data.id} onCreated={()=>{roster.reload();eligible.reload()}}/></details>}
       <p>O matricula a un alumno que ya tiene cuenta.</p><ApiMessage {...eligible} retry={eligible.reload}/><form className="api-form" onSubmit={enroll}><label>Alumno<select required value={studentId} onChange={e=>setStudentId(e.target.value)}><option value="">Selecciona un alumno</option>{eligible.data?.map(s=><option key={s.id} value={s.id}>{s.display_name} · {s.username}</option>)}</select></label><button className="primary" disabled={busy||!studentId||room.data.status!=='active'}>Matricular alumno</button></form>
       {eligible.data?.length===0&&<p>No hay otros alumnos activos para matricular.</p>}<ApiMessage {...roster} retry={roster.reload}/><ul className="roster-list">{roster.data?.map(s=><li key={s.id}><span><strong>{s.display_name}</strong><small>{s.username} · {accountStatusLabels[s.status]??s.status}</small></span><div><button className="secondary" disabled={busy} onClick={()=>setResetting(s)}>Restablecer contraseña</button><button className="secondary" disabled={busy} onClick={()=>void mutation('DELETE','/classrooms/'+id+'/students/'+s.id)}>Retirar matrícula</button></div></li>)}</ul>
       {resetting&&<PasswordReset key={resetting.id} userId={resetting.id} name={resetting.display_name} onClose={()=>setResetting(null)}/>}
       {roster.data?.length===0&&<p>Aún no hay alumnos matriculados.</p>}{!roster.loading&&!roster.error&&<Paging offset={offset} count={roster.data?.length??0} setOffset={setOffset}/>}</section>}
-    <ClassroomAssignments classroomId={room.data.id} manage={manage&&(user?.role==='admin'||room.data.teacher_id===user?.id)} active={room.data.status==='active'}/>
+    <ClassroomAssignments classroomId={room.data.id} manage={canManage} active={room.data.status==='active'}/>
   </>}</Page>
 }

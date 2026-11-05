@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, Header, HttpCode, Param, ParseUUIDPipe, 
 import { AuthRequest, Roles } from '../auth/auth.policy';
 import { LearningService } from './learning.service';
 import { ApiErrorFilter } from './api-error.filter';
-import { ClassroomDto, ClassroomPatchDto, ConsentDto, EnrollmentDto, PageDto, PasswordResetDto, ProgressDto, ProjectDto, ProjectPatchDto, ProjectDraftDto, StudentDto, StudentStatusDto, TeacherDto, TeacherStatusDto, WorkspaceDto } from './learning.dto';
+import { ClassroomDto, ClassroomPatchDto, ClassroomTeacherDto, ConsentDto, EnrollmentDto, PageDto, PasswordResetDto, ProgressDto, ProjectDto, ProjectPatchDto, ProjectDraftDto, StudentDto, StudentStatusDto, TeacherDto, TeacherStatusDto, WorkspaceDto } from './learning.dto';
 
 const uuid = new ParseUUIDPipe({ version: '4' });
 @Controller() @UseFilters(ApiErrorFilter) @Roles('student', 'teacher', 'admin')
@@ -46,6 +46,14 @@ export class LearningController {
   enroll(@Req() req: AuthRequest, @Param('id', uuid) id: string, @Body() body: EnrollmentDto) { return this.service.enroll(req.user!, id, body.student_id); }
   @Delete('classrooms/:id/students/:studentId') @Roles('teacher', 'admin') @HttpCode(204)
   unenroll(@Req() req: AuthRequest, @Param('id', uuid) id: string, @Param('studentId', uuid) studentId: string) { return this.service.unenroll(req.user!, id, studentId); }
+  @Get('classrooms/:id/teachers') @Header('Cache-Control', 'no-store')
+  classroomTeachers(@Req() req: AuthRequest, @Param('id', uuid) id: string) { return this.service.classroomTeachers(req.user!, id); }
+  @Get('classrooms/:id/eligible-teachers') @Roles('teacher', 'admin') @Header('Cache-Control', 'no-store')
+  eligibleTeachers(@Req() req: AuthRequest, @Param('id', uuid) id: string, @Query() page: PageDto) { return this.service.eligibleTeachers(req.user!, id, page); }
+  @Post('classrooms/:id/teachers') @Roles('teacher', 'admin') @HttpCode(200) @Header('Cache-Control', 'no-store')
+  addTeacher(@Req() req: AuthRequest, @Param('id', uuid) id: string, @Body() body: ClassroomTeacherDto) { return this.service.addTeacher(req.user!, id, body.teacher_id); }
+  @Delete('classrooms/:id/teachers/:teacherId') @Roles('teacher', 'admin') @HttpCode(204)
+  removeTeacher(@Req() req: AuthRequest, @Param('id', uuid) id: string, @Param('teacherId', uuid) teacherId: string) { return this.service.removeTeacher(req.user!, id, teacherId); }
   @Get('classrooms/:id/lessons') @Header('Cache-Control', 'no-store')
   lessons(@Req() req: AuthRequest, @Param('id', uuid) id: string, @Query() page: PageDto) { return this.service.lessons(req.user!, id, page); }
   @Get('projects') @Header('Cache-Control', 'no-store')

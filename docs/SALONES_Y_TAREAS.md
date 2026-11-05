@@ -5,16 +5,26 @@ Este documento describe el MVP: el docente arma su salón con alumnos y tareas, 
 ## Relación entre las partes
 
 ```
-DOCENTE ──1:N──► SALÓN ◄──N:M──► ALUMNO          (matrícula)
+DOCENTES ─N:M──► SALÓN ◄──N:M──► ALUMNO          (matrícula)
+(responsable + adicionales)
                    │                 │
                    └──1:N── TAREA    └──1:N── PROYECTO
                              │                   ▲
                              └──1:N── ENTREGA ───┘   (una por alumno y tarea)
 ```
 
-- **Salón:** tiene un docente responsable y un nivel. El curso es opcional.
+- **Salón:** tiene un docente responsable, docentes adicionales opcionales y un nivel. El curso es opcional.
 - **Tarea:** pertenece a un salón. Tiene título, descripción, consigna, fecha de inicio, fecha de cierre y rango de notas.
 - **Entrega:** pertenece a una tarea y a un alumno. El núcleo es un proyecto del alumno de ese salón, más una descripción opcional. Guarda el número de entrenamiento que tenía el proyecto al entregarse.
+
+## Docentes del salón
+
+- **Responsable:** cada salón tiene un docente responsable (`classrooms.teacher_id`), que es quien lo creó o quien asignó el administrador.
+- **Docentes adicionales:** se registran en `classroom_teachers`. Todos los docentes del salón tienen los mismos permisos sobre alumnos (crear, matricular, retirar, restablecer contraseñas), tareas, entregas y notas, y ven los proyectos del salón en solo lectura.
+- **Gestionar docentes:** el responsable y el administrador agregan o quitan docentes adicionales, y también editan, archivan o reabren el salón.
+- **Salir del salón:** un docente adicional puede salir por su cuenta.
+- **Responsable fijo:** el responsable no se puede quitar.
+- **Salón archivado:** no se agregan docentes.
 
 ## Cuentas
 
@@ -54,6 +64,9 @@ DOCENTE ──1:N──► SALÓN ◄──N:M──► ALUMNO          (matríc
 |---|---|---|
 | `POST /students` | docente, administrador | Alta en un paso: `guardian_authorized: true`, `guardian_name?`, `classroom_id?` (obligatorio para el docente) y `require_password_change?`. |
 | `POST /users/:id/password` | docente, administrador | Restablecer contraseña: `password` y `require_password_change?`. |
+| `GET /classrooms/:id/teachers` | todos con acceso al salón | Docentes del salón, con `responsible`. |
+| `GET /classrooms/:id/eligible-teachers` | responsable, administrador | Docentes activos que se pueden agregar. |
+| `POST /classrooms/:id/teachers` · `DELETE /classrooms/:id/teachers/:teacherId` | responsable, administrador (un adicional puede quitarse a sí mismo) | Agregar o quitar un docente adicional: `teacher_id`. |
 | `GET /classrooms/:id/assignments` | todos con acceso al salón | Tareas. El docente recibe conteos; el alumno, su entrega. |
 | `POST /classrooms/:id/assignments` | docente del salón, administrador | Crear una tarea. |
 | `GET /assignments/:id` | todos con acceso | Detalle. El docente recibe las entregas; el alumno, su entrega y sus proyectos del salón. |
@@ -63,6 +76,8 @@ DOCENTE ──1:N──► SALÓN ◄──N:M──► ALUMNO          (matríc
 | `GET /assignments/pending` | todos | Pendientes para Inicio. |
 
 ## Base de datos
+
+La migración `20261106120000_classroom_teachers` crea la tabla `classroom_teachers` (docentes adicionales).
 
 La migración `20261106100000_classroom_assignments` solo agrega cosas:
 - `classrooms.course_id` pasa a aceptar `NULL`.

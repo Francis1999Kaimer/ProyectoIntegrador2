@@ -13,7 +13,7 @@ function fixture(projectType = 'image_classification') {
   const teacher = { id: randomUUID(), role: 'teacher' }, admin = { id: randomUUID(), role: 'admin' }
   const room = { id: randomUUID(), teacher_id: teacher.id, status: 'active' }
   const project = { id: randomUUID(), owner_id: owner.id, classroom_id: room.id, title: 'P', project_type: projectType, status: 'draft' }
-  const repo = { project: async id => id === project.id ? project : null, classroom: async id => id === room.id ? room : null }
+  const repo = { project: async id => id === project.id ? project : null, classroom: async id => id === room.id ? room : null, teachesClassroom: async () => false }
   const t = trainingDb(), learning = new LearningService(repo, {}, t.db)
   t.rooms.set(room.id, room)
   return { ...t, project, room, owner, other, teacher, admin, service: new TrainingService(learning, t.db) }

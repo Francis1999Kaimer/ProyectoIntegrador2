@@ -17,9 +17,10 @@ function fixture() {
   const betoProject = project(beto, room.id)
   const projects = [anaProject, anaSecond, anaPersonal, anaArchived, betoProject]
   const runs = [1, 2].map(n => ({ project_id: anaProject.id, run_number: n, metrics_json: JSON.stringify({ test_accuracy: n === 2 ? 0.9 : 0.6 }) }))
-  const store = assignmentsDb({ rooms: [room], enrollments, users, projects, runs })
-  const learning = new LearningService(learningRepo({ rooms: [room], enrollments, users }), {}, store.db)
-  return { ...store, service: new AssignmentsService(learning, store.db), room, enrollments, teacher, otherTeacher, admin, ana, beto, outsider, anaProject, anaSecond, anaPersonal, anaArchived, betoProject }
+  const coTeachers = new Set()
+  const store = assignmentsDb({ rooms: [room], enrollments, users, projects, runs, coTeachers })
+  const learning = new LearningService(learningRepo({ rooms: [room], enrollments, users, coTeachers }), {}, store.db)
+  return { ...store, service: new AssignmentsService(learning, store.db), room, enrollments, coTeachers, teacher, otherTeacher, admin, ana, beto, outsider, anaProject, anaSecond, anaPersonal, anaArchived, betoProject }
 }
 const task = (over = {}) => ({ title: 'Clasificador de frutas', description: 'Entrena un clasificador de frutas.', instructions: 'Usa al menos tres frutas.', starts_at: iso(-1), ends_at: iso(7), grade_min: 0, grade_max: 20, ...over })
 
@@ -121,4 +122,17 @@ test('home pending lists: open tasks not yet submitted for students, ungraded su
   assert.equal((await f.service.pending(f.admin)).to_grade.length, 1)
   await f.service.grade(f.teacher, first.id, f.ana.id, { grade: 18 })
   assert.equal((await f.service.pending(f.teacher)).to_grade.length, 0)
+})
+
+test('an additional teacher of the classroom manages its tasks like the responsible teacher', async () => {
+  const f = fixture()
+  assert.equal(await status(f.service.create(f.otherTeacher, f.room.id, task())), 404)
+  f.coTeachers.add(f.room.id + ':' + f.otherTeacher.id)
+  const created = await f.service.create(f.otherTeacher, f.room.id, task({ title: 'Del docente adicional' }))
+  await f.service.submit(f.ana, created.id, { project_id: f.anaProject.id })
+  assert.deepEqual((await f.service.pending(f.otherTeacher)).to_grade.map(t => t.title), ['Del docente adicional'])
+  assert.equal((await f.service.detail(f.otherTeacher, created.id)).manage, true)
+  await f.service.grade(f.otherTeacher, created.id, f.ana.id, { grade: 16 })
+  assert.equal((await f.service.detail(f.ana, created.id)).submission.grade, 16)
+  assert.equal((await f.service.detail(f.teacher, created.id)).submissions.find(s => s.student.id === f.ana.id).submission.grade, 16)
 })
