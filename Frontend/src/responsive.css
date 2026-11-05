@@ -511,3 +511,13 @@ code { max-width: 100%; }
   .new-project-panel { padding: 18px 14px; }
   .new-project-panel .project-type-option { min-height: 64px; }
 }
+
+/* Ejemplos del tipo seleccionado. */
+.project-type-details { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 12px; margin-top: 14px; }
+.project-type-details > section { min-width: 0; padding: 12px 14px; background: #f4f4f4; }
+.new-project-panel .project-type-details h2 { margin: 0 0 6px; font-size: 16px; }
+.project-type-details p, .project-type-details li { font-size: 13px; line-height: 1.4; }
+.project-type-details p { margin: 0 0 8px; }
+.project-type-details ul { padding-left: 20px; margin: 0; }
+.project-type-details pre { margin: 0; padding: 10px; overflow: auto; max-height: 180px; background: #fff; font-size: 12px; line-height: 1.35; }
+@media (max-width: 700px) { .project-type-details { grid-template-columns: 1fr; } }
