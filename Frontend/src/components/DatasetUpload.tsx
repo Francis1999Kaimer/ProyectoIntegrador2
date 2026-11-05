@@ -15,7 +15,7 @@ export default function DatasetUpload() {
   async function load(file?: File) {
     if (!file || !draft) return
     setSummary(undefined); setFileName(file.name); setError('')
-    if (!/\\.zip$/i.test(file.name)) { setError('Selecciona un archivo ZIP.'); return }
+    if (!/\.zip$/i.test(file.name)) { setError('Selecciona un archivo ZIP.'); return }
     setBusy(true)
     try { setSummary(await validateDatasetZip(file, draft.type)) }
     catch (e) { setError(e instanceof Error ? e.message : 'No se pudo validar el ZIP.') }
