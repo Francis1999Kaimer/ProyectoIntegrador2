@@ -79,3 +79,17 @@ export class ProjectWithDatasetDto {
   @IsArray() @ArrayMinSize(2) @ArrayMaxSize(128) @IsString({ each: true }) @Length(1, 80, { each: true }) labels!: string[];
   @IsInt() @Min(4) @Max(1000) samples!: number;
 }
+
+export class ProjectDraftDto {
+  @IsUUID('4') request_id!: string;
+  @Transform(trim) @IsString() @Length(1, 180) title!: string;
+  @IsIn(['character_recognition','image_classification','sound_recognition','hand_gesture_classification','body_posture_classification','drawing_classification']) project_type!: string;
+  @ValidateIf(present) @IsUUID('4') classroom_id?: string;
+}
+export class InitialDatasetDto {
+  @Transform(trim) @IsString() @Length(1, 180) file_name!: string;
+  @IsIn(['application/zip', 'application/x-zip-compressed']) content_type!: string;
+  @IsBase64() archive_base64!: string;
+  @IsArray() @ArrayMinSize(2) @ArrayMaxSize(128) @IsString({ each: true }) @Length(1, 80, { each: true }) labels!: string[];
+  @IsInt() @Min(4) @Max(1000) samples!: number;
+}
