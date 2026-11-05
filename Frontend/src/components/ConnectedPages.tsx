@@ -17,7 +17,7 @@ export function Dashboard() {
     <section className="section-heading"><h2>Proyectos recientes</h2><Link to="/proyectos">Ver todos</Link></section>
     <ApiMessage {...recent} retry={recent.reload}/>
     {recent.data?.length===0&&<section className="panel empty-state"><p>Aún no hay proyectos disponibles para tu cuenta.</p><Link to="/crear">Crea tu primer proyecto</Link></section>}
-    <div className="card-grid">{recent.data?.map(p=><Link className="project-card" key={p.id} to={'/proyectos/'+p.id}><FolderOpen size={24}/><strong>{p.title}</strong><p>{typeLabel(p.project_type)}</p><small>{statusLabels[p.status]??p.status}</small></Link>)}</div>
+    <div className="card-grid">{recent.data?.map(p=><Link className="project-card" key={p.id} to={'/crear/datos?project='+encodeURIComponent(p.id)}><FolderOpen size={24}/><strong>{p.title}</strong><p>{typeLabel(p.project_type)}</p><small>{statusLabels[p.status]??p.status}</small></Link>)}</div>
   </Page>
 }
 export function ProjectsPage() {
