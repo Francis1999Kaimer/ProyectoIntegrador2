@@ -519,3 +519,22 @@ test('the responsible teacher adds another teacher; the additional teacher manag
   await click('Salir del salón');await waitFor(()=>window.location.pathname==='/salones')
   assert.deepEqual(current.rooms[0].co,[])
 }))
+
+test('classroom detail opens on the Tareas tab and switches to Docentes and Alumnos',()=>fixture(async()=>{
+  await mount();await login('teacher');await click('Salones');await click('Salon pilotoAño 2026Activo');await settle()
+  const tabs=[...document.querySelectorAll('[role="tab"]')]
+  assert.deepEqual(tabs.map(t=>t.textContent.trim()),['Tareas','Docentes','Alumnos'],'Tareas es la primera pestaña')
+  const panel=key=>document.getElementById('room-panel-'+key)
+  // El menú también tiene «Alumnos»: se pulsa la pestaña, no el enlace.
+  const tab=async key=>{await act(async()=>{document.getElementById('room-tab-'+key).dispatchEvent(new window.MouseEvent('click',{bubbles:true,cancelable:true,button:0}));await Promise.resolve()})}
+  assert.equal(tabs[0].getAttribute('aria-selected'),'true');assert.equal(panel('tareas').hidden,false)
+  assert.equal(panel('docentes').hidden,true);assert.equal(panel('alumnos').hidden,true)
+  await tab('docentes');assert.equal(panel('docentes').hidden,false);assert.equal(panel('tareas').hidden,true)
+  await waitFor(()=>/Docentes del salón/.test(panel('docentes').textContent))
+  await tab('alumnos');assert.equal(panel('alumnos').hidden,false);assert.match(panel('alumnos').textContent,/Alumnos matriculados/)
+  await tab('tareas');assert.equal(panel('tareas').hidden,false);assert.equal(panel('alumnos').hidden,true)
+}))
+test('students see the classroom tasks without tabs',()=>fixture(async()=>{
+  await mount();await login();await click('Salones');await click('Salon pilotoAño 2026Activo');await settle()
+  assert.equal(document.querySelector('[role="tablist"]'),null);assert.equal(document.getElementById('room-panel-tareas').hidden,false)
+}))

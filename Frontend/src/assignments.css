@@ -45,3 +45,7 @@
   .task-form-row, .grade-form { grid-template-columns: 1fr; }
   .submission-head .tag { margin-left: 0; }
 }
+
+/* Pestañas del detalle del salón: Tareas, Docentes y Alumnos. */
+.room-tabs { margin: 0; }
+.room-tabs ~ [role="tabpanel"] > .resource-detail { margin-top: 16px; }

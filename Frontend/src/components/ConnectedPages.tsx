@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
-import { ArrowRight, BrainCircuit, FolderOpen, Plus } from 'lucide-react'
+import { ArrowRight, BrainCircuit, ClipboardList, FolderOpen, GraduationCap, Plus, Users } from 'lucide-react'
 import { api } from '../api/http'
 import { useResource } from '../api/useResource'
 import { accountStatusLabels, statusLabels, typeLabel, type Catalog, type Classroom, type ClassroomTeacher, type Project, type Student, type Teacher } from '../api/types'
@@ -66,6 +66,8 @@ export function ClassroomsPage() {
     <div className="card-grid">{result.data?.map(r=><Link className="project-card" key={r.id} to={'/salones/'+r.id}><strong>{r.name}</strong><p>Año {r.academic_year}</p><small>{r.status==='active'?'Activo':'Archivado'}</small></Link>)}</div>
     {!result.loading&&!result.error&&<Paging offset={offset} count={result.data?.length??0} setOffset={setOffset}/>}</Page>
 }
+type RoomTab='tareas'|'docentes'|'alumnos'
+const roomTabs:{id:RoomTab;label:string;icon:typeof Users}[]=[{id:'tareas',label:'Tareas',icon:ClipboardList},{id:'docentes',label:'Docentes',icon:Users},{id:'alumnos',label:'Alumnos',icon:GraduationCap}]
 export function ClassroomDetail() {
   const {id}=useParams(),{user}=useAuth(), manage=user?.role!=='student'
   const room=useResource<Classroom>(id?'/classrooms/'+id:null), [offset,setOffset]=useState(0)
@@ -76,6 +78,8 @@ export function ClassroomDetail() {
   // Se conserva la última lista mientras recarga: la sección no se desmonta ni parpadea.
   const [team,setTeam]=useState<ClassroomTeacher[]|null>(null)
   useEffect(()=>{if(staff.data)setTeam(staff.data)},[staff.data])
+  // Pestañas del salón; se abre en Tareas. Los paneles ocultos siguen montados y conservan lo escrito.
+  const [tab,setTab]=useState<RoomTab>('tareas')
   const [studentId,setStudentId]=useState(''),[resetting,setResetting]=useState<Student|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('')
   async function mutation(method:string,path:string,body?:unknown):Promise<boolean> {if(busy)return false;setBusy(true);setError('');setNotice('');try{await api.request(path,{method,body});roster.reload();eligible.reload();room.reload();setNotice('Cambio guardado.');return true}catch(e){setError((e as Error).message);return false}finally{setBusy(false)}}
   async function enroll(e:FormEvent) { e.preventDefault(); if(await mutation('POST','/classrooms/'+id+'/students',{student_id:studentId})) setStudentId('') }
@@ -86,13 +90,14 @@ export function ClassroomDetail() {
     <p>Docentes: {team?team.map((t,i)=><span key={t.id}>{i?', ':''}<strong>{t.display_name}</strong>{t.responsible?' (responsable)':''}</span>):'Cargando…'}</p>
     {canAssign&&<button className="secondary" disabled={busy} onClick={()=>void mutation('PATCH','/classrooms/'+id,{status:room.data!.status==='active'?'archived':'active'})}>{room.data.status==='active'?'Archivar salón':'Reabrir salón'}</button>}
     <ApiMessage error={error}/>{notice&&<p role="status">{notice}</p>}</section>
-    {canManage&&team&&user&&<ClassroomTeachers room={room.data} staff={team} reload={staff.reload} userId={user.id} canAssign={canAssign}/>}
-    {manage&&<section className="panel resource-detail"><h2>Alumnos matriculados</h2>
+    {manage&&<div className="tab-row room-tabs" role="tablist" aria-label="Secciones del salón">{roomTabs.map(({id:key,label,icon:Icon})=><button key={key} type="button" role="tab" id={'room-tab-'+key} aria-controls={'room-panel-'+key} aria-selected={tab===key} className={tab===key?'active':''} onClick={()=>setTab(key)}><Icon size={16}/>{label}</button>)}</div>}
+    <div role={manage?'tabpanel':undefined} id="room-panel-tareas" aria-labelledby={manage?'room-tab-tareas':undefined} hidden={manage&&tab!=='tareas'}><ClassroomAssignments classroomId={room.data.id} manage={canManage} active={room.data.status==='active'}/></div>
+    {manage&&<div role="tabpanel" id="room-panel-docentes" aria-labelledby="room-tab-docentes" hidden={tab!=='docentes'}>{canManage&&team&&user?<ClassroomTeachers room={room.data} staff={team} reload={staff.reload} userId={user.id} canAssign={canAssign}/>:<ApiMessage {...staff} retry={staff.reload}/>}</div>}
+    {manage&&<div role="tabpanel" id="room-panel-alumnos" aria-labelledby="room-tab-alumnos" hidden={tab!=='alumnos'}><section className="panel resource-detail"><h2>Alumnos matriculados</h2>
       {room.data.status==='active'&&<details className="task-create"><summary>Crear alumno en este salón</summary><StudentForm classroomId={room.data.id} onCreated={()=>{roster.reload();eligible.reload()}}/></details>}
       <p>O matricula a un alumno que ya tiene cuenta.</p><ApiMessage {...eligible} retry={eligible.reload}/><form className="api-form" onSubmit={enroll}><label>Alumno<select required value={studentId} onChange={e=>setStudentId(e.target.value)}><option value="">Selecciona un alumno</option>{eligible.data?.map(s=><option key={s.id} value={s.id}>{s.display_name} · {s.username}</option>)}</select></label><button className="primary" disabled={busy||!studentId||room.data.status!=='active'}>Matricular alumno</button></form>
       {eligible.data?.length===0&&<p>No hay otros alumnos activos para matricular.</p>}<ApiMessage {...roster} retry={roster.reload}/><ul className="roster-list">{roster.data?.map(s=><li key={s.id}><span><strong>{s.display_name}</strong><small>{s.username} · {accountStatusLabels[s.status]??s.status}</small></span><div><button className="secondary" disabled={busy} onClick={()=>setResetting(s)}>Restablecer contraseña</button><button className="secondary" disabled={busy} onClick={()=>void mutation('DELETE','/classrooms/'+id+'/students/'+s.id)}>Retirar matrícula</button></div></li>)}</ul>
       {resetting&&<PasswordReset key={resetting.id} userId={resetting.id} name={resetting.display_name} onClose={()=>setResetting(null)}/>}
-      {roster.data?.length===0&&<p>Aún no hay alumnos matriculados.</p>}{!roster.loading&&!roster.error&&<Paging offset={offset} count={roster.data?.length??0} setOffset={setOffset}/>}</section>}
-    <ClassroomAssignments classroomId={room.data.id} manage={canManage} active={room.data.status==='active'}/>
+      {roster.data?.length===0&&<p>Aún no hay alumnos matriculados.</p>}{!roster.loading&&!roster.error&&<Paging offset={offset} count={roster.data?.length??0} setOffset={setOffset}/>}</section></div>}
   </>}</Page>
 }
