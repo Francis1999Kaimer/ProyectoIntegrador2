@@ -1,10 +1,54 @@
-import { useRef,useState } from 'react'
-import { ArrowRight, BrainCircuit, Image as ImageIcon, Target } from 'lucide-react'
-import { Link,useNavigate } from 'react-router'
-import { api } from '../api/http'
-import { type Classroom,type Project } from '../api/types'
+import { useState } from 'react'
+import { ArrowRight, Target } from 'lucide-react'
+import { Link } from 'react-router'
+import { type Classroom } from '../api/types'
 import { useResource } from '../api/useResource'
 import { useProjectStore } from '../store/project'
-import { ApiMessage,Header,workflow } from './AppShell'
+import { ApiMessage, Header } from './AppShell'
 
-export default function CreateProjectDynamic(){const nav=useNavigate(),{name,setName,select}=useProjectStore(),rooms=useResource<Classroom[]>('/classrooms?limit=100'),[classroom,setClassroom]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),sending=useRef(false);async function create(){if(sending.current||!name.trim())return;sending.current=true;setBusy(true);setError('');try{const project=await api.request<Project>('/projects',{method:'POST',body:{title:name.trim(),project_type:'character_recognition',...(classroom?{classroom_id:classroom}:{})}});select(project);nav(workflow('/dataset',project.id))}catch(e){setError((e as Error).message)}finally{sending.current=false;setBusy(false)}}return <><Header/><main className="page wizard-page"><Link className="back-link" to="/">← Volver al inicio</Link><div className="wizard-dynamic-layout"><section className="panel form-panel wizard-main-panel"><span className="eyebrow">NUEVO PROYECTO</span><h1>Entrena un reconocedor de caracteres</h1><p className="wizard-intro">Este laboratorio permite entrenar una CNN real con tus imágenes etiquetadas de números, letras o símbolos individuales.</p><label>Nombre del proyecto<input required maxLength={180} value={name} onChange={e=>setName(e.target.value)} placeholder="Ej. Reconocedor de números"/></label><label>Salón (opcional)<select value={classroom} onChange={e=>setClassroom(e.target.value)}><option value="">Proyecto personal</option>{rooms.data?.filter(r=>r.status==='active').map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select></label><ApiMessage {...rooms} retry={rooms.reload}/><section aria-labelledby="project-types-heading"><h2 id="project-types-heading">Tipo de proyecto</h2><p>Selecciona el tipo de proyecto que deseas crear. Los demás estarán disponibles próximamente.</p><div className="project-type-selector"><button type="button" className="project-type-option selected" aria-pressed="true"><span className="project-type-icon" aria-hidden="true"><Target size={20}/></span><span><strong>Reconocedor de caracteres</strong><small>Disponible · Números, letras y símbolos.</small></span><span className="selection-mark" aria-hidden="true">✓</span></button>{[["Clasificador de imágenes","Frutas, figuras y animales."],["Reconocedor de sonidos cortos","Palmadas, silbidos y palabras."],["Clasificador de gestos de la mano","Mano abierta, puño y otros gestos."],["Clasificador de posturas corporales","Posturas del cuerpo."],["Clasificador de dibujos simples","Casas, animales y figuras dibujadas."]].map(([title,description])=><button key={title} type="button" className="project-type-option" disabled><span className="project-type-icon" aria-hidden="true"><Target size={20}/></span><span><strong>{title}</strong><small>Próximamente · {description}</small></span></button>)}</div></section><section className="dynamic-config-card"><div className="dynamic-config-heading"><Target size={20}/><div><strong>Reconocedor de caracteres</strong><p>Clasificación de un carácter por imagen.</p></div></div><div className="dynamic-config-grid"><div><small>Dataset</small><strong>ZIP con carpetas por etiqueta</strong></div><div><small>Modelo</small><strong>CNN pequeña con TensorFlow.js</strong></div><div><small>Evaluación</small><strong>Accuracy y loss reales</strong></div><div><small>Almacenamiento</small><strong>Local en este navegador</strong></div></div></section><ApiMessage error={error}/><div className="actions wizard-actions"><Link className="secondary button-link" to="/">Cancelar</Link><button className="primary" disabled={busy||!name.trim()} onClick={()=>void create()}>{busy?'Creando…':'Crear y cargar dataset'} <ArrowRight size={17}/></button></div></section><aside className="wizard-side"><section className="panel live-preview blue"><span className="eyebrow">FLUJO DEL LABORATORIO</span><ImageIcon size={42}/><h2>ZIP → CNN → Predicción</h2><p>Sube ejemplos etiquetados, entrena localmente y prueba una imagen nueva.</p></section><section className="friendly-note"><BrainCircuit size={20}/><div><strong>Entrenamiento real</strong><p>El modelo no es una simulación ni usa una API externa.</p></div></section></aside></div></main></>}
+const projectTypes = [
+  { id: 'characters', title: 'Reconocedor de caracteres', description: 'Números, letras y símbolos.' },
+  { id: 'images', title: 'Clasificador de imágenes', description: 'Frutas, figuras y animales.' },
+  { id: 'sounds', title: 'Reconocedor de sonidos cortos', description: 'Palmadas, silbidos y palabras.' },
+  { id: 'hands', title: 'Clasificador de gestos de la mano', description: 'Mano abierta, puño y otros gestos.' },
+  { id: 'postures', title: 'Clasificador de posturas corporales', description: 'Diferentes posturas del cuerpo.' },
+  { id: 'drawings', title: 'Clasificador de dibujos simples', description: 'Casas, animales y figuras dibujadas.' },
+] as const
+
+export default function CreateProjectDynamic() {
+  const { name, setName } = useProjectStore()
+  const rooms = useResource<Classroom[]>('/classrooms?limit=100')
+  const [classroom, setClassroom] = useState('')
+  const [type, setType] = useState<string>('characters')
+
+  return <>
+    <Header />
+    <main className="page wizard-page new-project-page">
+      <Link className="back-link" to="/">← Volver al inicio</Link>
+      <section className="panel form-panel wizard-main-panel new-project-panel">
+        <span className="eyebrow">NUEVO PROYECTO</span>
+        <h1>Entrena un proyecto nuevo</h1>
+        <div className="new-project-fields">
+          <label>Nombre del proyecto<input required maxLength={180} value={name} onChange={e => setName(e.target.value)} placeholder="Ej. Reconocedor de números" /></label>
+          <label>Salón (opcional)<select value={classroom} onChange={e => setClassroom(e.target.value)}><option value="">Proyecto personal</option>{rooms.data?.filter(r => r.status === 'active').map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></label>
+        </div>
+        <ApiMessage {...rooms} retry={rooms.reload} />
+        <section aria-labelledby="project-types-heading">
+          <h2 id="project-types-heading">Tipo de proyecto</h2>
+          <p className="new-project-hint">Elige el tipo de proyecto que deseas crear.</p>
+          <div className="project-type-selector">
+            {projectTypes.map(item => <button key={item.id} type="button" className={`project-type-option${type === item.id ? ' selected' : ''}`} aria-pressed={type === item.id} onClick={() => setType(item.id)}>
+              <span className="project-type-icon" aria-hidden="true"><Target size={20} /></span>
+              <span><strong>{item.title}</strong><small>{item.description}</small></span>
+              <span className="selection-mark" aria-hidden="true">{type === item.id ? '✓' : ''}</span>
+            </button>)}
+          </div>
+        </section>
+        <div className="actions wizard-actions">
+          <Link className="secondary button-link" to="/">Cancelar</Link>
+          <button type="button" className="primary">Siguiente <ArrowRight size={17} /></button>
+        </div>
+      </section>
+    </main>
+  </>
+}
