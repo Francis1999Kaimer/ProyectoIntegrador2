@@ -1,6 +1,6 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowRight, Target } from 'lucide-react'
-import { Link, useNavigate } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { api } from '../api/http'
 import { type Classroom, type Project } from '../api/types'
 import { useResource } from '../api/useResource'
@@ -22,7 +22,12 @@ export default function CreateProjectDynamic() {
   const { user } = useAuth()
   const { name, setName } = useProjectStore()
   const rooms = useResource<Classroom[]>('/classrooms?limit=100')
-  const [classroom, setClassroom] = useState('')
+  // Atajo «Crear proyecto para esta tarea»: llega con ?salon=<id> y deja ese salón elegido.
+  const preset = new URLSearchParams(useLocation().search).get('salon') ?? ''
+  const [classroom, setClassroom] = useState(preset)
+  useEffect(() => {
+    if (rooms.data && classroom && !rooms.data.some(r => r.id === classroom && r.status === 'active')) setClassroom('')
+  }, [rooms.data, classroom])
   const [type, setType] = useState<string>('characters')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')

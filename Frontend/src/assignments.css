@@ -1,0 +1,47 @@
+/* Tareas del salón, cuentas e Inicio. Mismo lenguaje visual que el resto de la app. */
+.resource-detail h2 { display: flex; align-items: center; gap: 8px; }
+.task-create { margin: 8px 0 16px; border: 1px solid #e0e0e0; background: #fff; }
+.task-create > summary, details.resource-detail > summary { cursor: pointer; padding: 12px 14px; font-weight: 600; color: #0f62fe; display: flex; align-items: center; gap: 6px; }
+.task-create > .api-form { padding: 0 14px 14px; }
+.task-form textarea, .api-form textarea { width: 100%; padding: 10px; border: 1px solid #8d8d8d; background: #f4f4f4; font: inherit; resize: vertical; }
+.task-form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.field-note { font-size: 13px; color: #525252; }
+.check-label span { display: flex; align-items: flex-start; gap: 8px; font-weight: 400; }
+.check-label input { margin-top: 3px; }
+
+.task-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.task-card { display: grid; gap: 4px; padding: 12px 14px; border: 1px solid #e0e0e0; background: #fff; color: inherit; text-decoration: none; }
+.task-card:hover { border-color: #0f62fe; background: #f8faff; }
+.task-card small { color: #525252; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.task-card-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.info-tag { background: #d0e2ff; color: #0043ce; }
+.muted-tag { background: #e0e0e0; color: #393939; }
+
+.task-header h1 { margin: 4px 0 8px; }
+.task-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; color: #525252; font-size: 14px; }
+.task-meta span { display: inline-flex; align-items: center; gap: 5px; }
+.task-text { white-space: pre-wrap; color: #262626; }
+.task-grade { flex-direction: column; gap: 2px; }
+.task-grade-value { font-size: 22px; margin: 0; color: #161616; }
+.task-grade-value strong { color: #198038; }
+
+.submission-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 12px; }
+.submission-list > li { border: 1px solid #e0e0e0; padding: 14px; background: #fff; display: grid; gap: 8px; }
+.submission-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+.submission-head small { color: #6f6f6f; }
+.submission-head .tag { margin-left: auto; }
+.submission-meta, .submission-comment { margin: 0; font-size: 14px; color: #393939; }
+.submission-comment { font-style: italic; }
+.submission-list .button-link { justify-self: start; }
+.grade-form { display: grid; grid-template-columns: minmax(130px, 180px) minmax(0, 1fr) auto; gap: 10px; align-items: end; }
+.grade-form label { display: grid; gap: 4px; font-size: 13px; font-weight: 600; }
+.grade-form input { padding: 9px 10px; border: 1px solid #8d8d8d; background: #f4f4f4; font: inherit; }
+.grade-form .api-error { grid-column: 1 / -1; }
+.danger-text { color: #da1e28; }
+.pending-panel { margin-top: 20px; }
+.roster-list li > div { display: flex; flex-wrap: wrap; gap: 8px; }
+
+@media (max-width: 640px) {
+  .task-form-row, .grade-form { grid-template-columns: 1fr; }
+  .submission-head .tag { margin-left: 0; }
+}

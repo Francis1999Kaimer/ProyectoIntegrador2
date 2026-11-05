@@ -11,4 +11,5 @@ import './dynamic-project.css'
 import './responsive.css'
 import './connected.css'
 import './training.css'
+import './assignments.css'
 createRoot(document.getElementById('root')!).render(<StrictMode><BrowserRouter><AuthProvider><Gate/></AuthProvider></BrowserRouter></StrictMode>)

@@ -15,6 +15,14 @@ dom.window.confirm=()=>true
 dom.window.HTMLCanvasElement.prototype.getContext=()=>null
 globalThis.createImageBitmap=async()=>({close(){},width:10,height:10})
 const MIN_PER_CATEGORY=10
+const stateOf=a=>Date.now()<new Date(a.starts_at).getTime()?'upcoming':Date.now()>new Date(a.ends_at).getTime()?'closed':'open'
+const roomOf=a=>current.rooms.find(r=>r.id===a.classroom_id)
+const taskView=(a,hide=false)=>({...a,description:hide?null:a.description,instructions:hide?null:a.instructions,state:stateOf(a)})
+function detailOf(a,user){
+  const room=roomOf(a),manage=user.role==='admin'||room.teacher_id===user.id,base={...taskView(a,!manage&&stateOf(a)==='upcoming'),classroom:{id:room.id,name:room.name,status:room.status},manage}
+  if(manage)return {...base,submissions:current.users.filter(u=>u.role==='student'&&current.enrolled.has(room.id+':'+u.id)).map(u=>{const sub=current.submissions.find(x=>x.assignment_id===a.id&&x.student_id===u.id);const project=sub&&current.projects.find(x=>x.id===sub.project_id);return {student:{id:u.id,username:u.username,display_name:u.display_name},enrolled:true,submission:sub?{...sub,project:project?{id:project.id,title:project.title,project_type:project.project_type}:null,test_accuracy:null}:null}})}
+  return {...base,submission:current.submissions.find(x=>x.assignment_id===a.id&&x.student_id===user.id)??null,projects:current.projects.filter(x=>x.owner_id===user.id&&x.classroom_id===room.id).map(({id,title,project_type,status})=>({id,title,project_type,status}))}
+}
 async function countZip(bytes){const zip=await JSZip.loadAsync(bytes),counts={};for(const e of Object.values(zip.files))if(!e.dir){const [label]=e.name.split('/');counts[label]=(counts[label]??0)+1}return counts}
 const enough=lab=>Object.values(lab.counts).every(n=>n>=MIN_PER_CATEGORY)
 function trainingState(p,user){
@@ -51,7 +59,7 @@ globalThis.fetch=async(url,options={})=>{
   if(user.must_change_password)return json(403,{})
   if(path==='/catalog')return json(200,{levels:[{id:1,name:'Exploradores'}],courses:[{id:uid(90),title:'Curso piloto'}]})
   if(path==='/projects/draft'&&method==='POST'){
-    const p={id:body.request_id,owner_id:user.id,title:body.title,project_type:body.project_type,status:'draft'}
+    const p={id:body.request_id,owner_id:user.id,classroom_id:body.classroom_id??null,title:body.title,project_type:body.project_type,status:'draft'}
     current.projects.push(p);return json(201,p)
   }
   if(path==='/projects'){
@@ -87,6 +95,41 @@ globalThis.fetch=async(url,options={})=>{
     }
     if(method==='PATCH'){Object.assign(p,body);return json(200,p)}return json(200,p)
   }
+  if(path==='/assignments/pending'){
+    const now=Date.now()
+    if(user.role==='student')return json(200,{tasks:current.assignments.filter(a=>stateOf(a)==='open'&&current.enrolled.has(a.classroom_id+':'+user.id)&&!current.submissions.some(s=>s.assignment_id===a.id&&s.student_id===user.id)).map(a=>({...taskView(a),classroom_name:roomOf(a).name})),to_grade:[]})
+    const rows=current.assignments.filter(a=>user.role==='admin'||roomOf(a).teacher_id===user.id).map(a=>({...taskView(a),classroom_name:roomOf(a).name,ungraded:current.submissions.filter(s=>s.assignment_id===a.id&&s.grade===null).length})).filter(a=>a.ungraded)
+    return json(200,{tasks:[],to_grade:rows})
+  }
+  if(path.startsWith('/assignments/')){
+    const [,,taskId,resource,studentId]=path.split('/'),a=current.assignments.find(x=>x.id===taskId);if(!a)return json(404,{})
+    const room=roomOf(a),manage=user.role==='admin'||room.teacher_id===user.id
+    if(!manage&&!current.enrolled.has(room.id+':'+user.id))return json(404,{})
+    if(resource==='submission'&&method==='PUT'){
+      if(user.role!=='student')return json(403,{});if(stateOf(a)!=='open')return json(409,{})
+      const project=current.projects.find(x=>x.id===body.project_id);if(!project||project.owner_id!==user.id||project.classroom_id!==room.id)return json(400,{})
+      let sub=current.submissions.find(x=>x.assignment_id===a.id&&x.student_id===user.id);if(sub?.grade!=null)return json(409,{})
+      if(!sub){sub={id:uid(++current.sequence+900),assignment_id:a.id,student_id:user.id,grade:null,feedback:null,graded_at:null};current.submissions.push(sub)}
+      Object.assign(sub,{project_id:project.id,run_number:null,comment:body.comment??null,submitted_at:new Date().toISOString()})
+      return json(200,detailOf(a,user))
+    }
+    if(resource==='submissions'&&method==='PUT'){
+      if(!manage)return json(404,{});const sub=current.submissions.find(x=>x.assignment_id===a.id&&x.student_id===studentId);if(!sub)return json(404,{})
+      if(body.grade<a.grade_min||body.grade>a.grade_max)return json(400,{})
+      Object.assign(sub,{grade:body.grade,feedback:body.feedback??null,graded_at:new Date().toISOString()});return json(200,detailOf(a,user))
+    }
+    if(method==='PATCH'){if(!manage)return json(404,{});Object.assign(a,body);return json(200,taskView(a))}
+    if(method==='DELETE'){if(!manage)return json(404,{});if(current.submissions.some(x=>x.assignment_id===a.id))return json(409,{});current.assignments.splice(current.assignments.indexOf(a),1);return json(204)}
+    return json(200,detailOf(a,user))
+  }
+  if(path.startsWith('/users/')&&path.endsWith('/password')){
+    const target=current.users.find(u=>u.id===path.split('/')[2]);if(user.role==='student')return json(403,{})
+    const allowed=target&&(user.role==='admin'||(target.role==='student'&&current.rooms.some(r=>r.teacher_id===user.id&&current.enrolled.has(r.id+':'+target.id))))
+    if(!allowed)return json(404,{});if(body.password.length<12)return json(400,{})
+    target.password=body.password;target.must_change_password=body.require_password_change!==false
+    for(const [key,value]of current.tokens)if(value.id===target.id)current.tokens.delete(key)
+    return json(204)
+  }
   if(path==='/classrooms'){
     if(method==='POST'){const r={id:uid(++current.sequence+200),...body,teacher_id:body.teacher_id??user.id,status:'active'};current.rooms.push(r);return json(201,r)}
     return json(200,current.rooms.filter(r=>user.role==='admin'||r.teacher_id===user.id||current.enrolled.has(r.id+':'+user.id)))
@@ -95,6 +138,13 @@ globalThis.fetch=async(url,options={})=>{
     const [,,id,resource,studentId]=path.split('/'),room=current.rooms.find(r=>r.id===id)
     if(!room)return json(404,{})
     if(resource==='lessons')return json(200,[current.lesson])
+    if(resource==='assignments'){
+      const manage=user.role==='admin'||room.teacher_id===user.id
+      if(method==='POST'){if(!manage)return json(404,{});const a={id:uid(++current.sequence+800),classroom_id:id,...body,created_at:new Date().toISOString(),updated_at:new Date().toISOString()};current.assignments.push(a);return json(201,taskView(a))}
+      const own=current.assignments.filter(a=>a.classroom_id===id)
+      if(manage)return json(200,own.map(a=>({...taskView(a),counts:{students:current.users.filter(u=>current.enrolled.has(id+':'+u.id)).length,submitted:current.submissions.filter(s=>s.assignment_id===a.id).length,graded:current.submissions.filter(s=>s.assignment_id===a.id&&s.grade!==null).length}})))
+      return json(200,own.map(a=>({...taskView(a,stateOf(a)==='upcoming'),my_submission:current.submissions.find(s=>s.assignment_id===a.id&&s.student_id===user.id)??null})))
+    }
     if(resource==='eligible-students')return json(200,current.users.filter(s=>s.role==='student'&&s.status==='active'&&!current.enrolled.has(id+':'+s.id)).map(({password,...s})=>s))
     if(resource==='students'){
       if(method==='POST'){current.enrolled.add(id+':'+body.student_id);return json(200,{})}
@@ -109,7 +159,11 @@ globalThis.fetch=async(url,options={})=>{
     const p={id:uid(80),student_id:user.id,lesson_id:current.lesson.id,completed_sections:body.completed_sections,progress_percent:body.completed_sections*20,status:'in_progress'};current.progress=[p];return json(200,p)
   }
   if(path==='/students'){
-    if(method==='POST'){const s={id:uid(++current.sequence+300),username:body.username,display_name:body.display_name,password:body.password,role:'student',status:'pending',must_change_password:true};current.users.push(s);const {password,...profile}=s;return json(201,profile)}
+    if(method==='POST'){
+      if(body.guardian_authorized!==true)return json(400,{});if(user.role==='teacher'&&!current.rooms.some(r=>r.id===body.classroom_id&&r.teacher_id===user.id))return json(user.role==='teacher'&&!body.classroom_id?400:404,{})
+      const s={id:uid(++current.sequence+300),username:body.username,display_name:body.display_name,password:body.password,role:'student',status:'active',must_change_password:body.require_password_change!==false,guardian:body.guardian_name??'No indicado'}
+      current.users.push(s);current.consents.add(s.id);if(body.classroom_id)current.enrolled.add(body.classroom_id+':'+s.id);const {password,...profile}=s;return json(201,profile)
+    }
     return json(200,current.users.filter(u=>u.role==='student').map(({password,...u})=>u))
   }
   if(path==='/teachers'){
@@ -136,7 +190,7 @@ const {AuthProvider,Gate,api,setToken,getToken,useProjectStore,buildModel,export
 let root
 function fresh(){
   for(const key of [...Object.keys(sessionStorage)])if(key.startsWith('aiblocks.login-throttle.'))sessionStorage.removeItem(key)
-  current={users:['student','teacher','admin'].map((role,i)=>({id:uid(i+1),username:role,display_name:'Test '+role,role,status:'active',must_change_password:false,password:PASSWORD})),tokens:new Map(),sequence:0,requests:[],projects:[],labs:new Map(),progress:[],simulations:[],workspaces:new Map(),consents:new Set([uid(1)]),enrolled:new Set()}
+  current={assignments:[],submissions:[],users:['student','teacher','admin'].map((role,i)=>({id:uid(i+1),username:role,display_name:'Test '+role,role,status:'active',must_change_password:false,password:PASSWORD})),tokens:new Map(),sequence:0,requests:[],projects:[],labs:new Map(),progress:[],simulations:[],workspaces:new Map(),consents:new Set([uid(1)]),enrolled:new Set()}
   current.rooms=[{id:uid(50),teacher_id:uid(2),name:'Salon piloto',course_id:uid(90),level_id:1,academic_year:2026,status:'active'}]
   current.enrolled.add(uid(50)+':'+uid(1))
   current.lesson={id:uid(60),title:'Leccion piloto',summary:'Contenido publicado',content:{sections:Array.from({length:5},(_,i)=>({title:'Seccion '+(i+1),text:i===0?'<img src=x onerror=alert(1)>':'Texto de lectura'}))}}
@@ -149,8 +203,8 @@ async function mount(path='/login'){
 }
 async function unmount(){if(root)await act(async()=>root.unmount());root=null}
 async function fixture(fn){fresh();setToken(null);useProjectStore.getState().reset();try{await fn()}finally{await unmount();setToken(null);useProjectStore.getState().reset()}}
-function field(text){const label=[...document.querySelectorAll('label')].find(l=>l.firstChild?.textContent.trim()===text);assert.ok(label,'Missing label: '+text);return label.querySelector('input,select')}
-async function fill(text,value){const el=field(text);await act(async()=>{Object.getOwnPropertyDescriptor(el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(el,value);el.dispatchEvent(new window.Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}));await Promise.resolve()})}
+function field(text){const label=[...document.querySelectorAll('label')].find(l=>l.firstChild?.textContent.trim()===text);assert.ok(label,'Missing label: '+text);return label.querySelector('input,select,textarea')}
+async function fill(text,value){const el=field(text);await act(async()=>{Object.getOwnPropertyDescriptor(el.tagName==='SELECT'?HTMLSelectElement.prototype:el.tagName==='TEXTAREA'?dom.window.HTMLTextAreaElement.prototype:HTMLInputElement.prototype,'value').set.call(el,value);el.dispatchEvent(new window.Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}));await Promise.resolve()})}
 async function click(text){const el=[...document.querySelectorAll('button,a,summary')].find(e=>e.textContent.trim()===text);assert.ok(el,'Missing action: '+text);await act(async()=>{el.dispatchEvent(new window.MouseEvent('click',{bubbles:true,cancelable:true,button:0}));await Promise.resolve()})}
 async function submit(label){const form=field(label).closest('form');await act(async()=>{form.dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));await Promise.resolve()})}
 async function settle(){ for(let i=0;i<5;i++) await act(async()=>{await Promise.resolve()}) }
@@ -205,14 +259,14 @@ test('new project screen selects each type and advances to dataset validation',(
   assert.ok(current.requests.some(r=>r.method==='POST'&&r.path==='/projects/draft'))
 }))
 test('teacher classroom form, roster enrollment and removal use real component event flow',()=>fixture(async()=>{
-  await mount();await login('teacher');await click('Salones');await click('Crear salón');await fill('Nombre','Salon nuevo DOM');await fill('Nivel','1');await fill('Curso',uid(90));await submit('Nombre')
+  await mount();await login('teacher');await click('Salones');await click('Crear salón');await fill('Nombre','Salon nuevo DOM');await fill('Nivel','1');await submit('Nombre')
   const room=current.rooms.find(r=>r.name==='Salon nuevo DOM');assert.ok(room);assert.equal(room.teacher_id,uid(2))
   await click('Salon nuevo DOMAño 2026Activo');await fill('Alumno',uid(1));await submit('Alumno')
   assert.match(text(),/Test student/);assert.ok(current.enrolled.has(room.id+':'+uid(1)))
   await click('Retirar matrícula');assert.ok(!current.enrolled.has(room.id+':'+uid(1)))
 }))
 test('admin selects an active teacher instead of entering a classroom UUID',()=>fixture(async()=>{
-  await mount();await login('admin');await click('Salones');await click('Crear salón');await fill('Nombre','Salon admin DOM');await fill('Nivel','1');await fill('Curso',uid(90));await fill('Docente responsable',uid(2));await submit('Nombre')
+  await mount();await login('admin');await click('Salones');await click('Crear salón');await fill('Nombre','Salon admin DOM');await fill('Nivel','1');await fill('Docente responsable',uid(2));await submit('Nombre')
   const room=current.rooms.find(r=>r.name==='Salon admin DOM');assert.ok(room);assert.equal(room.teacher_id,uid(2))
 }))
 test('admin sees the responsible teacher in classroom details',()=>fixture(async()=>{
@@ -225,12 +279,10 @@ test('old character workflow routes open the project in the new flow',()=>fixtur
   assert.equal(new URLSearchParams(window.location.search).get('project'),uid(40))
   assert.match(text(),/PASO 1 · DATOS DE ENTRENAMIENTO/);assert.match(text(),/Selecciona tu archivo ZIP/)
 }))
-test('student lesson content is escaped and reading progress is written and refreshed',()=>fixture(async()=>{
-  await mount();await login();await click('Salones');await click('Salon pilotoAño 2026Activo');await click('Leccion piloto')
-  assert.match(text(),/<img src=x onerror=alert\(1\)>/);assert.equal(document.querySelector('.lesson-content img'),null)
-  await click('Registrar lectura hasta aquí');assert.equal(current.progress[0].completed_sections,1);assert.match(text(),/Avance guardado: 20%/)
-  assert.equal(document.querySelector('.lesson-section button').disabled,true)
-  assert.ok(!text().includes('Matricular alumno'))
+test('classroom detail no longer shows course lessons; students see the tasks section',()=>fixture(async()=>{
+  await mount();await login();await click('Salones');await click('Salon pilotoAño 2026Activo');await settle()
+  assert.ok(!text().includes('Lecciones'));assert.ok(!text().includes('Leccion piloto'));assert.match(text(),/Tareas/)
+  assert.match(text(),/Este salón todavía no tiene tareas/);assert.ok(!text().includes('Matricular alumno'));assert.ok(!text().includes('Nueva tarea'))
 }))
 test('API unavailable provides retry; protected 401 clears session and returns to login',()=>fixture(async()=>{
   await mount();await login();current.projectsError=503;await click('Proyectos');assert.match(text(),/servicio no está disponible/);assert.ok(getToken())
@@ -244,24 +296,38 @@ test('forced password change blocks business pages, wrong current password prese
   await fill('Contraseña actual',PASSWORD);await fill('Nueva contraseña','new-test-only-password-123');await fill('Confirmar nueva contraseña','new-test-only-password-123');await submit('Contraseña actual')
   assert.equal(window.location.pathname,'/login');assert.equal(getToken(),null);await login('student','new-test-only-password-123');assert.equal(window.location.pathname,'/inicio');assert.match(text(),/Hola, Test student/)
 }))
-test('admin creates pending student, registers consent and activates through connected forms',()=>fixture(async()=>{
-  await mount();await login('admin');await click('Alumnos');await click('Registrar alumno');await fill('Usuario','new_student');await fill('Nombre visible','Alumno DOM');await fill('Contraseña inicial',PASSWORD);await submit('Usuario')
-  const student=current.users.find(u=>u.username==='new_student');assert.ok(student);assert.equal(student.status,'pending')
-  const row=[...document.querySelectorAll('.roster-list li')].find(l=>l.textContent.includes('Alumno DOM'))
-  await act(async()=>{row.querySelector('button').click();await Promise.resolve()})
-  await fill('Nombre del tutor','Tutor sintetico DOM');await fill('Versión del consentimiento','unit-test-v1')
-  await act(async()=>{document.querySelector('input[type=checkbox]').click();await Promise.resolve()});await submit('Nombre del tutor')
-  assert.ok(current.consents.has(student.id))
-  const refreshed=[...document.querySelectorAll('.roster-list li')].find(l=>l.textContent.includes('Alumno DOM'))
-  await act(async()=>{[...refreshed.querySelectorAll('button')].find(b=>b.textContent==='Activar').click();await Promise.resolve()})
-  assert.equal(student.status,'active')
+test('admin creates an active student in one step with the guardian authorization',()=>fixture(async()=>{
+  await mount();await login('admin');await click('Alumnos');await click('Registrar alumno')
+  await fill('Usuario','new_student');await fill('Nombre visible','Alumno DOM');await fill('Contraseña inicial',PASSWORD);await fill('Nombre del padre, madre o tutor (opcional)','Tutor DOM')
+  assert.equal(button('Crear alumno').disabled,true,'la casilla es obligatoria')
+  const authorize=[...document.querySelectorAll('input[type=checkbox]')].find(c=>c.closest('label').textContent.includes('autorización'))
+  await act(async()=>{authorize.click();await Promise.resolve()});await submit('Usuario');await settle()
+  const student=current.users.find(u=>u.username==='new_student');assert.ok(student);assert.equal(student.status,'active');assert.equal(student.guardian,'Tutor DOM')
+  assert.ok(current.consents.has(student.id));assert.equal(student.must_change_password,true);assert.match(text(),/Alumno creado/)
+}))
+
+test('teacher creates a student inside the classroom and resets the password of own students',()=>fixture(async()=>{
+  await mount();await login('teacher');await click('Salones');await click('Salon pilotoAño 2026Activo');await settle()
+  await click('Crear alumno en este salón');await fill('Usuario','nina');await fill('Nombre visible','Niña DOM');await fill('Contraseña inicial',PASSWORD)
+  const checks=[...document.querySelectorAll('input[type=checkbox]')]
+  await act(async()=>{checks.find(c=>c.closest('label').textContent.includes('autorización')).click();checks.find(c=>c.closest('label').textContent.includes('cambie la contraseña')).click();await Promise.resolve()})
+  await submit('Usuario');await settle()
+  const nina=current.users.find(u=>u.username==='nina');assert.ok(nina);assert.ok(current.enrolled.has(uid(50)+':'+nina.id));assert.equal(nina.must_change_password,false)
+  await waitFor(()=>/Niña DOM/.test(document.querySelector('.roster-list')?.textContent??''))
+  const row=[...document.querySelectorAll('.roster-list li')].find(l=>l.textContent.includes('Test student'))
+  await act(async()=>{[...row.querySelectorAll('button')].find(b=>b.textContent==='Restablecer contraseña').click();await Promise.resolve()})
+  await fill('Nueva contraseña','clave-nueva-alumno-1');await submit('Nueva contraseña');await settle()
+  assert.equal(current.users[0].password,'clave-nueva-alumno-1');assert.match(text(),/Contraseña restablecida/)
 }))
 
 test('admin manages teacher accounts through connected forms',()=>fixture(async()=>{
   await mount();await login('admin');await click('Docentes');await click('Registrar docente');await fill('Usuario','new_teacher');await fill('Nombre visible','Docente DOM');await fill('Contraseña inicial',PASSWORD);await submit('Usuario')
   const teacher=current.users.find(u=>u.username==='new_teacher');assert.ok(teacher);assert.equal(teacher.role,'teacher');assert.equal(teacher.status,'active');assert.equal(teacher.must_change_password,true)
-  let row=[...document.querySelectorAll('.roster-list li')].find(l=>l.textContent.includes('Docente DOM'));await act(async()=>{row.querySelector('button').click();await Promise.resolve()});assert.equal(teacher.status,'suspended')
-  row=[...document.querySelectorAll('.roster-list li')].find(l=>l.textContent.includes('Docente DOM'));await act(async()=>{row.querySelector('button').click();await Promise.resolve()});assert.equal(teacher.status,'active')
+  const toggle=async label=>{const row=[...document.querySelectorAll('.roster-list li')].find(l=>l.textContent.includes('Docente DOM'));await act(async()=>{[...row.querySelectorAll('button')].find(b=>b.textContent===label).click();await Promise.resolve()})}
+  await toggle('Suspender');assert.equal(teacher.status,'suspended')
+  await toggle('Activar');assert.equal(teacher.status,'active')
+  await toggle('Restablecer contraseña');await fill('Nueva contraseña','otra-clave-segura-1');await submit('Nueva contraseña');await settle()
+  assert.equal(teacher.password,'otra-clave-segura-1');assert.equal(teacher.must_change_password,true);assert.match(text(),/Contraseña restablecida/)
 }))
 
 
@@ -391,4 +457,37 @@ test('opening a project continues at the last step reached; later steps redirect
   await waitFor(()=>window.location.pathname==='/crear/evaluar')
   const q=await seedProject({config:null});await unmount();await mount('/crear/entrenar?project='+q.id)
   await waitFor(()=>window.location.pathname==='/crear/configuracion')
+}))
+
+
+test('teacher creates a task; the student submits a project from the shortcut flow; the teacher grades and the student sees the grade',()=>fixture(async()=>{
+  await mount();await login('teacher');await click('Salones');await click('Salon pilotoAño 2026Activo');await settle()
+  await click('Nueva tarea');await fill('Título','Clasificador de frutas');await fill('Descripción','Entrena un modelo de frutas.');await fill('Consigna','Usa tres frutas y prueba el modelo.')
+  assert.equal(field('Nota mínima').value,'0');assert.equal(field('Nota máxima').value,'20')
+  await submit('Título');await settle()
+  const task=current.assignments[0];assert.ok(task);assert.equal(task.instructions,'Usa tres frutas y prueba el modelo.');assert.equal(task.grade_max,20)
+  assert.ok(new Date(task.ends_at)>new Date(task.starts_at))
+  await waitFor(()=>/Entregas 0 de 1/.test(text()))
+  await click('Salir');await login();await click('Inicio');await settle()
+  await waitFor(()=>/Tareas pendientes/.test(text())&&/Clasificador de frutas/.test(text()))
+  await click('Salones');await click('Salon pilotoAño 2026Activo');await settle()
+  await waitFor(()=>/Pendiente de entrega/.test(text()))
+  const card=[...document.querySelectorAll('a.task-card')].find(a=>a.textContent.includes('Clasificador de frutas'));await act(async()=>{card.dispatchEvent(new window.MouseEvent('click',{bubbles:true,cancelable:true,button:0}));await Promise.resolve()})
+  await waitFor(()=>/Mi entrega/.test(text()));assert.match(text(),/Aún no tienes proyectos en este salón/);assert.match(text(),/Usa tres frutas/)
+  await click('Crear proyecto para esta tarea');await waitFor(()=>window.location.pathname==='/crear')
+  assert.equal(new URLSearchParams(window.location.search).get('salon'),uid(50))
+  await waitFor(()=>document.querySelector('select')?.value===uid(50));await fill('Nombre del proyecto','Mis frutas');await click('Crear proyecto y siguiente')
+  await waitFor(()=>window.location.pathname==='/crear/datos')
+  const project=current.projects.find(p=>p.title==='Mis frutas');assert.equal(project.classroom_id,uid(50))
+  await unmount();await mount('/salones/'+uid(50)+'/tareas/'+task.id);await settle()
+  await waitFor(()=>!!button('Entregar proyecto'));await fill('Descripción de la entrega (opcional)','Usé manzanas');await click('Entregar proyecto');await settle()
+  await waitFor(()=>/Entregaste/.test(text()))
+  assert.equal(current.submissions[0].project_id,project.id);assert.equal(current.submissions[0].comment,'Usé manzanas')
+  await click('Salir');await login('teacher');await click('Inicio');await waitFor(()=>/Entregas por calificar/.test(text())&&/1 por calificar/.test(text()))
+  await unmount();await mount('/salones/'+uid(50)+'/tareas/'+task.id);await settle()
+  await waitFor(()=>/Por calificar/.test(text()));assert.match(text(),/Mis frutas/);assert.match(text(),/Usé manzanas/)
+  await fill('Nota (0 a 20)','17.5');await fill('Comentario (opcional)','Muy bien');await click('Guardar nota');await settle()
+  await waitFor(()=>/Nota: 17\.5/.test(text()));assert.equal(current.submissions[0].grade,17.5)
+  await click('Salir');await login();await unmount();await mount('/salones/'+uid(50)+'/tareas/'+task.id);await settle()
+  await waitFor(()=>/Nota: 17\.5 \/ 20/.test(text()));assert.match(text(),/Muy bien/);assert.equal(button('Actualizar entrega'),undefined)
 }))

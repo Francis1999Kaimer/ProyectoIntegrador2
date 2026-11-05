@@ -51,7 +51,7 @@ export class ApiClient {
     } finally { clearTimeout(timer); options.signal?.removeEventListener('abort', cancel) }
   }
   async blob(path: string, options: Omit<RequestOptions, 'body'> = {}): Promise<Blob> {
-    if (!path.startsWith('/') || path.startsWith('//')) throw new Error('Ruta API invÃ¡lida.')
+    if (!path.startsWith('/') || path.startsWith('//')) throw new Error('Ruta API inválida.')
     const token = options.auth === false ? null : this.token()
     const controller = new AbortController()
     const cancel = () => controller.abort()
@@ -65,14 +65,14 @@ export class ApiClient {
       })
       if (!response.ok) {
         if (response.status === 401 && token && options.invalidateSession !== false) this.expired(token)
-        const messages: Record<number, string> = { 401: 'Tu sesiÃ³n venciÃ³. Inicia sesiÃ³n otra vez.', 403: 'No tienes permiso para esta acciÃ³n.', 404: 'El archivo no estÃ¡ disponible para tu cuenta.' }
-        throw new ApiError(response.status, messages[response.status] ?? 'El servicio no estÃ¡ disponible. Intenta de nuevo.')
+        const messages: Record<number, string> = { 401: 'Tu sesión venció. Inicia sesión otra vez.', 403: 'No tienes permiso para esta acción.', 404: 'El archivo no está disponible para tu cuenta.' }
+        throw new ApiError(response.status, messages[response.status] ?? 'El servicio no está disponible. Intenta de nuevo.')
       }
       return response.blob()
     } catch (error) {
       if (error instanceof ApiError) throw error
       if (options.signal?.aborted) throw new DOMException('Solicitud cancelada.', 'AbortError')
-      throw new ApiError(0, 'No se pudo conectar con el servidor. Comprueba que el backend estÃ© iniciado.')
+      throw new ApiError(0, 'No se pudo conectar con el servidor. Comprueba que el backend esté iniciado.')
     } finally { clearTimeout(timer); options.signal?.removeEventListener('abort', cancel) }
   }
 }

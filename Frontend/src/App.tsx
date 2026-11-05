@@ -3,9 +3,10 @@ import { Dashboard, ProjectsPage, ProjectDetail, ClassroomsPage, ClassroomDetail
 import { StudentsPage } from './components/StudentsPage'
 import { TeachersPage } from './components/TeachersPage'
 import { LandingPage } from './components/LandingPage'
+import { AssignmentPage } from './components/Assignments'
 
 export default function App(){return <Routes>
   <Route path="/" element={<LandingPage/>}/><Route path="/inicio" element={<Dashboard/>}/><Route path="/proyectos" element={<ProjectsPage/>}/><Route path="/proyectos/:id" element={<ProjectDetail/>}/>
-  <Route path="/salones" element={<ClassroomsPage/>}/><Route path="/salones/:id" element={<ClassroomDetail/>}/><Route path="/alumnos" element={<StudentsPage/>}/><Route path="/docentes" element={<TeachersPage/>}/>
+  <Route path="/salones" element={<ClassroomsPage/>}/><Route path="/salones/:id" element={<ClassroomDetail/>}/><Route path="/salones/:id/tareas/:taskId" element={<AssignmentPage/>}/><Route path="/alumnos" element={<StudentsPage/>}/><Route path="/docentes" element={<TeachersPage/>}/>
   <Route path="*" element={<Navigate to="/" replace/>}/>
 </Routes>}
